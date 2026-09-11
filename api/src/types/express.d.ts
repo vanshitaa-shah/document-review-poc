@@ -9,7 +9,9 @@ declare global {
       }
       // Set by the validate middleware — req.query itself is a read-only
       // computed getter in Express 5 and cannot carry parsed/coerced values.
-      validatedQuery?: Record<string, unknown>
+      // Typed `unknown`, not a shape, so every controller must narrow it with
+      // its own schema's z.infer before use — see getValidatedQuery().
+      validatedQuery?: unknown
     }
   }
 }

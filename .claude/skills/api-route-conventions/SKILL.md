@@ -18,23 +18,34 @@ what keeps bad input away from business logic and keeps unauthorized rows unload
 6. **Audit row inside that transaction.**
 7. **Throw a typed error**; the central handler maps it to a status code.
 
-## Routes vs controllers
+## Routes vs controllers vs schemas
 
-`routes/*.ts` only wires `method, path, middleware chain, controller function` — no
-business logic in the route file. Validation schemas, queries, transactions and audit
-rows live in `controllers/*.ts`. A route file should read like a table of endpoints.
+- `routes/<resource>.ts` only wires `method, path, middleware chain, controller
+  function` — no business logic. One comment line above each route saying what
+  it's for.
+- `controllers/<resource>/<action>.ts` — one handler per file (`request-changes.ts`,
+  not a multi-export `reviews.controller.ts`). Add the new file to that resource's
+  `controllers/<resource>/index.ts` barrel.
+- `schemas/<resource>.schema.ts` — Zod schemas for that resource, imported by both
+  the route (for `validate()`) and the controller (for `z.infer`).
+- Before a second handler repeats the same few lines — an audit-row shape, a
+  "file is required" check, a response reshape — pull it into `lib/` instead of
+  copy-pasting. See `lib/audit.ts`, `lib/uploadedFile.ts`, `lib/documentResponse.ts`.
 
 ## Skeleton
 
 ```ts
-// controllers/reviews.controller.ts
-export const bodySchema = z.object({
+// schemas/reviews.schema.ts
+export const requestChangesBodySchema = z.object({
   comment: z.string().min(1, 'Comment is required'),
 })
+```
 
+```ts
+// controllers/reviews/request-changes.ts
 export async function requestChanges(req: Request, res: Response) {
   const { versionId } = req.params
-  const { comment } = req.body as z.infer<typeof bodySchema>
+  const { comment } = req.body as z.infer<typeof requestChangesBodySchema>
   const { id: userId } = req.user!
 
   const result = await withSerializableRetry(() =>
@@ -50,7 +61,7 @@ export async function requestChanges(req: Request, res: Response) {
       })
       if (!version) throw new ConflictError('Version is not the current submitted version')
 
-      // ... state change, audit row, all in tx
+      // ... state change, audit row (recordAuditEvent(tx, ...)), all in tx
     }, { isolationLevel: 'Serializable' })
   )
 
@@ -60,11 +71,13 @@ export async function requestChanges(req: Request, res: Response) {
 
 ```ts
 // routes/reviews.ts
+
+// Reviewer requests changes on the current submitted version, with a required comment.
 router.post(
   '/versions/:versionId/request-changes',
   requireAuth,
   requireRole('REVIEWER'),
-  validate({ params: paramsSchema, body: bodySchema }),
+  validate({ params: paramsSchema, body: requestChangesBodySchema }),
   requestChanges,
 )
 ```

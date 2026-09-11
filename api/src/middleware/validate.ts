@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import type { ZodType } from 'zod'
+import type { z, ZodType } from 'zod'
 
 interface Schemas {
   body?: ZodType
@@ -16,4 +16,14 @@ export function validate(schemas: Schemas) {
     if (schemas.query) req.validatedQuery = schemas.query.parse(req.query)
     next()
   }
+}
+
+/**
+ * The one place that narrows `req.validatedQuery` (typed `unknown`) back to a
+ * concrete shape. Only call this for a route whose `validate()` was given the
+ * same `schema` for `query` — otherwise this throws instead of silently lying
+ * about the shape of `req.validatedQuery`.
+ */
+export function getValidatedQuery<T extends ZodType>(req: Request, schema: T): z.infer<T> {
+  return schema.parse(req.validatedQuery)
 }

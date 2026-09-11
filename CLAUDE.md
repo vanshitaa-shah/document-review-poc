@@ -18,17 +18,30 @@ web/          React 19 + Vite + Tailwind
 phases/       The build plan, one file per phase
 ```
 
-`api/src/` splits routes from logic:
+`api/src/` splits routes from logic, one file per handler:
 
 ```
-routes/       Path + middleware wiring only — no business logic
-controllers/  Handler functions: validation schemas, queries, transactions, audit rows
-lib/          Shared helpers (prisma, jwt, category access, retry, upload, pagination, ...)
-middleware/   Express middleware (auth, validate, error handler)
+routes/                 Path + middleware wiring only — no business logic
+controllers/<resource>/  One file per handler (e.g. create-document.ts), plus an
+                         index.ts barrel that routes/ imports from
+schemas/                 Zod schemas, one file per resource (<resource>.schema.ts)
+lib/                     Shared helpers (prisma, jwt, category access, retry, upload,
+                         pagination, audit, uploaded-file field building, ...)
+middleware/              Express middleware (auth, validate, error handler)
 ```
 
-A route file reads as a table of `method, path, middleware chain, controller function` —
-if a route handler has a `{` body doing real work, that work belongs in the controller.
+Rules that keep this from rotting:
+
+- A route file reads as a table of `method, path, middleware chain, controller function`,
+  one line of comment above each route saying what it's for — no `{` handler bodies in
+  routes/, ever.
+- One handler per file under `controllers/<resource>/`, named after the action
+  (`get-document.ts`, not `documentController.ts` with six exports).
+- Zod schemas live in `schemas/`, not inline in a route or controller file.
+- Before writing a second controller that repeats the same few lines (an audit-row
+  shape, a file-required check, a `{ ...doc, currentVersion }` reshape), stop and put
+  it in `lib/` instead — see `audit.ts`, `uploadedFile.ts`, `documentResponse.ts` for
+  the pattern.
 
 ## Stack
 
