@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import {
   documentCategoryFilter,
   documentVersionCategoryFilter,
+  documentVisibilityFilter,
   isCategoryMember,
 } from '../lib/categoryAccess.js'
 import { withSerializableRetry } from '../lib/dbRetry.js'
@@ -12,6 +13,7 @@ import { sha256File } from '../lib/fileHash.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { validate } from '../middleware/validate.js'
 import { upload } from '../lib/upload.js'
+import { decodeCursor, encodeCursor } from '../lib/pagination.js'
 
 export const documentsRouter = Router()
 
@@ -26,6 +28,53 @@ const versionsQuerySchema = z.object({
   cursor: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 })
+
+const listQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+})
+
+documentsRouter.get(
+  '/',
+  requireAuth,
+  validate({ query: listQuerySchema }),
+  async (req, res) => {
+    const { cursor, limit = 20 } = req.validatedQuery as z.infer<typeof listQuerySchema>
+    const { id: userId } = req.user!
+
+    const cursorPage = cursor ? decodeCursor(cursor) : null
+
+    const documents = await prisma.document.findMany({
+      where: {
+        AND: [
+          documentVisibilityFilter(userId),
+          ...(cursorPage
+            ? [
+                {
+                  OR: [
+                    { createdAt: { lt: cursorPage.createdAt } },
+                    { createdAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: { versions: { where: { isCurrent: true } } },
+    })
+
+    const hasMore = documents.length > limit
+    const page = documents.slice(0, limit)
+    const last = page[page.length - 1]
+
+    res.json({
+      items: page.map(({ versions, ...doc }) => ({ ...doc, currentVersion: versions[0] ?? null })),
+      nextCursor: hasMore && last ? encodeCursor(last) : null,
+    })
+  },
+)
 
 // Author uploads the initial file for a new document — version 1, current, DRAFT.
 // Phase 02 (upload & submit) hasn't landed yet; this is the minimal slice of it
@@ -134,14 +183,16 @@ documentsRouter.get(
     const { id: userId } = req.user!
 
     const document = await prisma.document.findFirst({
-      where: { id, ...documentCategoryFilter(userId) },
+      where: { id, ...documentVisibilityFilter(userId) },
+      include: { versions: { where: { isCurrent: true } } },
     })
 
     if (!document) {
       throw new NotFoundError()
     }
 
-    res.json(document)
+    const { versions, ...doc } = document
+    res.json({ ...doc, currentVersion: versions[0] ?? null })
   },
 )
 
@@ -263,7 +314,7 @@ documentsRouter.get(
     const { id: userId } = req.user!
 
     const document = await prisma.document.findFirst({
-      where: { id: documentId, ...documentCategoryFilter(userId) },
+      where: { id: documentId, ...documentVisibilityFilter(userId) },
     })
     if (!document) {
       throw new NotFoundError()

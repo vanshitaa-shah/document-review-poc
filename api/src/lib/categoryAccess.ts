@@ -19,3 +19,15 @@ export async function isCategoryMember(userId: string, categoryId: string): Prom
   })
   return membership !== null
 }
+
+/**
+ * Category membership is necessary but not sufficient: a DRAFT document is only
+ * visible to its own author, never to other category members. Submitted (and
+ * later) documents are visible to everyone in the category.
+ */
+export function documentVisibilityFilter(userId: string): Prisma.DocumentWhereInput {
+  return {
+    ...documentCategoryFilter(userId),
+    OR: [{ authorId: userId }, { versions: { some: { isCurrent: true, status: { not: 'DRAFT' } } } }],
+  }
+}

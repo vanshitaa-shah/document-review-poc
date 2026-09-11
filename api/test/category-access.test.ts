@@ -54,7 +54,24 @@ describe('category isolation', () => {
     })
 
     const document = await prisma.document.create({
-      data: { title: `Isolation doc ${suffix}`, categoryId: memberCategoryId, authorId },
+      data: {
+        title: `Isolation doc ${suffix}`,
+        categoryId: memberCategoryId,
+        authorId,
+        versions: {
+          create: {
+            versionNumber: 1,
+            filePath: '/tmp/isolation-doc',
+            fileName: 'doc.txt',
+            mimeType: 'text/plain',
+            size: 3,
+            sha256: 'x',
+            uploadedById: authorId,
+            isCurrent: true,
+            status: 'SUBMITTED',
+          },
+        },
+      },
     })
     documentId = document.id
 
@@ -63,6 +80,7 @@ describe('category isolation', () => {
   })
 
   afterAll(async () => {
+    await prisma.documentVersion.deleteMany({ where: { documentId } })
     await prisma.document.deleteMany({ where: { id: documentId } })
     await prisma.categoryMembership.deleteMany({
       where: { categoryId: { in: [memberCategoryId, outsiderCategoryId] } },
