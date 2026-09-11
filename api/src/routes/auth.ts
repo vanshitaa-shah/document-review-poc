@@ -1,35 +1,7 @@
 import { Router } from 'express'
-import bcrypt from 'bcrypt'
-import { z } from 'zod'
-import { prisma } from '../lib/prisma.js'
-import { signAuthToken } from '../lib/jwt.js'
-import { UnauthorizedError } from '../lib/errors.js'
 import { validate } from '../middleware/validate.js'
+import { login, loginSchema } from '../controllers/auth.controller.js'
 
 export const authRouter = Router()
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1, 'Password is required'),
-})
-
-authRouter.post('/login', validate({ body: loginSchema }), async (req, res) => {
-  const { email, password } = req.body as z.infer<typeof loginSchema>
-
-  const user = await prisma.user.findUnique({ where: { email } })
-  if (!user) {
-    throw new UnauthorizedError('Invalid email or password')
-  }
-
-  const passwordMatches = await bcrypt.compare(password, user.passwordHash)
-  if (!passwordMatches) {
-    throw new UnauthorizedError('Invalid email or password')
-  }
-
-  const token = signAuthToken({ sub: user.id, role: user.role })
-
-  res.json({
-    token,
-    user: { id: user.id, email: user.email, role: user.role },
-  })
-})
+authRouter.post('/login', validate({ body: loginSchema }), login)

@@ -18,6 +18,18 @@ web/          React 19 + Vite + Tailwind
 phases/       The build plan, one file per phase
 ```
 
+`api/src/` splits routes from logic:
+
+```
+routes/       Path + middleware wiring only — no business logic
+controllers/  Handler functions: validation schemas, queries, transactions, audit rows
+lib/          Shared helpers (prisma, jwt, category access, retry, upload, pagination, ...)
+middleware/   Express middleware (auth, validate, error handler)
+```
+
+A route file reads as a table of `method, path, middleware chain, controller function` —
+if a route handler has a `{` body doing real work, that work belongs in the controller.
+
 ## Stack
 
 Node 22, Express 5, PostgreSQL 16, Prisma, Zod, JWT, multer, pino + OpenObserve.

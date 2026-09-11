@@ -18,42 +18,54 @@ what keeps bad input away from business logic and keeps unauthorized rows unload
 6. **Audit row inside that transaction.**
 7. **Throw a typed error**; the central handler maps it to a status code.
 
+## Routes vs controllers
+
+`routes/*.ts` only wires `method, path, middleware chain, controller function` — no
+business logic in the route file. Validation schemas, queries, transactions and audit
+rows live in `controllers/*.ts`. A route file should read like a table of endpoints.
+
 ## Skeleton
 
 ```ts
-const bodySchema = z.object({
+// controllers/reviews.controller.ts
+export const bodySchema = z.object({
   comment: z.string().min(1, 'Comment is required'),
 })
 
+export async function requestChanges(req: Request, res: Response) {
+  const { versionId } = req.params
+  const { comment } = req.body as z.infer<typeof bodySchema>
+  const { id: userId } = req.user!
+
+  const result = await withSerializableRetry(() =>
+    db.$transaction(async (tx) => {
+      // category predicate in the where, not a check afterwards
+      const version = await tx.documentVersion.findFirst({
+        where: {
+          id: versionId,
+          isCurrent: true,
+          status: 'SUBMITTED',
+          document: { category: { memberships: { some: { userId } } } },
+        },
+      })
+      if (!version) throw new ConflictError('Version is not the current submitted version')
+
+      // ... state change, audit row, all in tx
+    }, { isolationLevel: 'Serializable' })
+  )
+
+  res.json(result)
+}
+```
+
+```ts
+// routes/reviews.ts
 router.post(
   '/versions/:versionId/request-changes',
   requireAuth,
   requireRole('REVIEWER'),
   validate({ params: paramsSchema, body: bodySchema }),
-  async (req, res) => {
-    const { versionId } = req.params
-    const { comment } = req.body
-    const { id: userId } = req.user
-
-    const result = await withSerializableRetry(() =>
-      db.$transaction(async (tx) => {
-        // category predicate in the where, not a check afterwards
-        const version = await tx.documentVersion.findFirst({
-          where: {
-            id: versionId,
-            isCurrent: true,
-            status: 'SUBMITTED',
-            document: { category: { memberships: { some: { userId } } } },
-          },
-        })
-        if (!version) throw new ConflictError('Version is not the current submitted version')
-
-        // ... state change, audit row, all in tx
-      }, { isolationLevel: 'Serializable' })
-    )
-
-    res.json(result)
-  }
+  requestChanges,
 )
 ```
 
