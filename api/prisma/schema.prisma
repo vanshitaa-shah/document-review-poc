@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  AUTHOR
+  REVIEWER
+}
+
+enum VersionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  CHANGES_REQUESTED
+  SUPERSEDED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+  SUPERSEDED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+
+  memberships       CategoryMembership[]
+  documentsAuthored Document[]           @relation("DocumentAuthor")
+  versionsUploaded  DocumentVersion[]    @relation("VersionUploadedBy")
+  reviews           Review[]             @relation("ReviewReviewer")
+  approvals         Approval[]           @relation("ApprovalApprover")
+  comments          Comment[]            @relation("CommentAuthor")
+  auditEvents       AuditEvent[]         @relation("AuditActor")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  memberships CategoryMembership[]
+  documents   Document[]
+}
+
+model CategoryMembership {
+  id         String   @id @default(uuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, categoryId])
+  @@index([categoryId])
+}
+
+model Document {
+  id         String   @id @default(uuid())
+  title      String
+  categoryId String
+  authorId   String
+  createdAt  DateTime @default(now())
+
+  category Category          @relation(fields: [categoryId], references: [id])
+  author   User              @relation("DocumentAuthor", fields: [authorId], references: [id])
+  versions DocumentVersion[]
+  auditEvents AuditEvent[]
+
+  @@index([categoryId, createdAt])
+}
+
+model DocumentVersion {
+  id            String        @id @default(uuid())
+  documentId    String
+  versionNumber Int
+  filePath      String
+  fileName      String
+  mimeType      String
+  size          Int
+  sha256        String
+  uploadedById  String
+  uploadedAt    DateTime      @default(now())
+  isCurrent     Boolean       @default(true)
+  status        VersionStatus @default(DRAFT)
+
+  document   Document @relation(fields: [documentId], references: [id])
+  uploadedBy User     @relation("VersionUploadedBy", fields: [uploadedById], references: [id])
+
+  reviews     Review[]
+  approval    Approval?
+  comments    Comment[]
+  auditEvents AuditEvent[]
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, isCurrent])
+  @@index([documentId, versionNumber])
+}
+
+model Review {
+  id         String       @id @default(uuid())
+  versionId  String
+  reviewerId String
+  status     ReviewStatus @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+  createdAt  DateTime     @default(now())
+
+  version  DocumentVersion @relation(fields: [versionId], references: [id])
+  reviewer User            @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+
+  @@index([versionId, status])
+}
+
+model Approval {
+  id         String   @id @default(uuid())
+  versionId  String   @unique
+  approverId String
+  approvedAt DateTime @default(now())
+
+  version  DocumentVersion @relation(fields: [versionId], references: [id])
+  approver User            @relation("ApprovalApprover", fields: [approverId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  versionId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  // Anchor fields are placeholders — real quote/offset anchoring lands in phase 09.
+  anchorQuote  String?
+  anchorPrefix String?
+  anchorSuffix String?
+  anchorStart  Int?
+  anchorEnd    Int?
+
+  version DocumentVersion @relation(fields: [versionId], references: [id])
+  author  User            @relation("CommentAuthor", fields: [authorId], references: [id])
+
+  @@index([versionId])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  documentId String
+  versionId  String?
+  timestamp  DateTime @default(now())
+  metadata   Json?
+
+  actor    User             @relation("AuditActor", fields: [actorId], references: [id])
+  document Document         @relation(fields: [documentId], references: [id])
+  version  DocumentVersion? @relation(fields: [versionId], references: [id])
+
+  @@index([documentId, timestamp])
+}
