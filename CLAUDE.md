@@ -53,3 +53,4 @@ These are the things that must never break. Details and the reasoning in
 - `/race` — run the concurrency race test in a loop
 - `/db-reset` — drop, migrate, seed
 - `/invariants` — audit the codebase against the five invariants above
+- `/commit` — stage and commit following this project's commit conventions
