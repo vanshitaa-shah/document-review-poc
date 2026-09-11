@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import multer from 'multer'
 import { ZodError } from 'zod'
 import { AppError } from '../lib/errors.js'
 
@@ -11,6 +12,11 @@ export function errorHandler(
 ) {
   if (err instanceof ZodError) {
     res.status(400).json({ error: 'Invalid request', details: err.flatten() })
+    return
+  }
+
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({ error: err.message })
     return
   }
 

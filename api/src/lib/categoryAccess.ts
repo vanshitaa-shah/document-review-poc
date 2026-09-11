@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { prisma } from './prisma.js'
 
 /**
  * Bakes category membership into the query itself so a non-member's row
@@ -10,4 +11,11 @@ export function documentCategoryFilter(userId: string): Prisma.DocumentWhereInpu
 
 export function documentVersionCategoryFilter(userId: string): Prisma.DocumentVersionWhereInput {
   return { document: { category: { memberships: { some: { userId } } } } }
+}
+
+export async function isCategoryMember(userId: string, categoryId: string): Promise<boolean> {
+  const membership = await prisma.categoryMembership.findUnique({
+    where: { userId_categoryId: { userId, categoryId } },
+  })
+  return membership !== null
 }
