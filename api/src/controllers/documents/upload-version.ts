@@ -28,13 +28,20 @@ export async function uploadVersion(req: Request, res: Response) {
   const newVersion = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
-        const [current] = await tx.$queryRaw<Array<{ id: string; versionNumber: number }>>`
-          SELECT id, "versionNumber" FROM "DocumentVersion"
+        const [current] = await tx.$queryRaw<
+          Array<{ id: string; versionNumber: number; status: string }>
+        >`
+          SELECT id, "versionNumber", status FROM "DocumentVersion"
           WHERE "documentId" = ${documentId} AND "isCurrent" = true
           FOR UPDATE
         `
         if (!current) {
           throw new ConflictError('Document has no current version')
+        }
+        if (current.status === 'APPROVED') {
+          throw new ConflictError(
+            `Version v${current.versionNumber} is approved and locked; the document is finished`,
+          )
         }
 
         await tx.documentVersion.update({
