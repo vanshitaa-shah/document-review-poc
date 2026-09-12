@@ -166,4 +166,43 @@ describe('upload & submit', () => {
     expect(directAsReviewer.status).toBe(200)
     expect(directAsReviewer.body.currentVersion.status).toBe('SUBMITTED')
   })
+
+  it('hides a submitted document from a different author in the same category', async () => {
+    const passwordHash = await bcrypt.hash('password123', 10)
+    const otherAuthor = await prisma.user.create({
+      data: { email: `docs-other-author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
+    })
+    await prisma.categoryMembership.create({ data: { userId: otherAuthor.id, categoryId } })
+    const otherAuthorToken = signAuthToken({ sub: otherAuthor.id, role: 'AUTHOR' })
+
+    const create = await request(app)
+      .post('/documents')
+      .set('Authorization', `Bearer ${authorToken}`)
+      .field('title', "Someone else's doc")
+      .field('categoryId', categoryId)
+      .attach('file', Buffer.from('content'), 'v1.txt')
+    documentIds.push(create.body.id)
+
+    await request(app)
+      .post(`/documents/${create.body.id}/submit`)
+      .set('Authorization', `Bearer ${authorToken}`)
+
+    const listAsOtherAuthor = await request(app)
+      .get('/documents')
+      .set('Authorization', `Bearer ${otherAuthorToken}`)
+    expect(listAsOtherAuthor.body.items.map((d: { id: string }) => d.id)).not.toContain(create.body.id)
+
+    const directAsOtherAuthor = await request(app)
+      .get(`/documents/${create.body.id}`)
+      .set('Authorization', `Bearer ${otherAuthorToken}`)
+    expect(directAsOtherAuthor.status).toBe(404)
+
+    const listAsOwnAuthor = await request(app)
+      .get('/documents')
+      .set('Authorization', `Bearer ${authorToken}`)
+    expect(listAsOwnAuthor.body.items.map((d: { id: string }) => d.id)).toContain(create.body.id)
+
+    await prisma.categoryMembership.deleteMany({ where: { userId: otherAuthor.id } })
+    await prisma.user.delete({ where: { id: otherAuthor.id } })
+  })
 })

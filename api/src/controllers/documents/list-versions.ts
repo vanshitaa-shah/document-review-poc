@@ -10,10 +10,10 @@ import { paramsSchema, versionsQuerySchema } from '../../schemas/documents.schem
 export async function listVersions(req: Request, res: Response) {
   const { id: documentId } = req.params as z.infer<typeof paramsSchema>
   const { cursor, limit = 20 } = getValidatedQuery(req, versionsQuerySchema)
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const document = await prisma.document.findFirst({
-    where: { id: documentId, ...documentVisibilityFilter(userId) },
+    where: { id: documentId, ...documentVisibilityFilter(userId, role) },
   })
   if (!document) {
     throw new NotFoundError()

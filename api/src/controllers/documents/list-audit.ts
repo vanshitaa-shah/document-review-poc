@@ -11,10 +11,10 @@ import { listQuerySchema, paramsSchema } from '../../schemas/documents.schema.js
 export async function listAudit(req: Request, res: Response) {
   const { id: documentId } = req.params as z.infer<typeof paramsSchema>
   const { cursor, limit = 20 } = getValidatedQuery(req, listQuerySchema)
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const document = await prisma.document.findFirst({
-    where: { id: documentId, ...documentVisibilityFilter(userId) },
+    where: { id: documentId, ...documentVisibilityFilter(userId, role) },
   })
   if (!document) {
     throw new NotFoundError()

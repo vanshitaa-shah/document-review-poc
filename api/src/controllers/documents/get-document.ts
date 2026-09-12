@@ -9,10 +9,10 @@ import { paramsSchema } from '../../schemas/documents.schema.js'
 // Fetches one document with its current version, scoped to category + draft visibility.
 export async function getDocument(req: Request, res: Response) {
   const { id } = req.params as z.infer<typeof paramsSchema>
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const document = await prisma.document.findFirst({
-    where: { id, ...documentVisibilityFilter(userId) },
+    where: { id, ...documentVisibilityFilter(userId, role) },
     include: {
       versions: { where: { isCurrent: true } },
       category: { select: { id: true, name: true } },

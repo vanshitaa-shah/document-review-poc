@@ -24,23 +24,25 @@ interface DocumentListResponse {
   nextCursor: string | null
 }
 
+const PAGE_SIZE = 10
+
 export function DocumentListPage() {
   const { token, user } = useAuth()
-  const [pages, setPages] = useState<DocumentSummary[][]>([])
+  const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(true)
+  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
-  async function loadPage(after: string | null) {
+  async function loadPage(target: string | null) {
     setLoading(true)
     setError(null)
     try {
-      const query = after ? `?cursor=${encodeURIComponent(after)}` : ''
+      const query = `?limit=${PAGE_SIZE}${target ? `&cursor=${encodeURIComponent(target)}` : ''}`
       const res = await api.get<DocumentListResponse>(`/documents${query}`, token)
-      setPages((prev) => (after ? [...prev, res.items] : [res.items]))
-      setCursor(res.nextCursor)
-      setHasMore(res.nextCursor !== null)
+      setDocuments(res.items)
+      setNextCursor(res.nextCursor)
     } catch (err) {
       setError(err)
     } finally {
@@ -53,14 +55,31 @@ export function DocumentListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const documents = pages.flat()
+  function goNext() {
+    if (!nextCursor) return
+    setCursorHistory((prev) => [...prev, cursor])
+    setCursor(nextCursor)
+    void loadPage(nextCursor)
+  }
+
+  function goPrevious() {
+    if (cursorHistory.length === 0) return
+    const previous = cursorHistory[cursorHistory.length - 1] ?? null
+    setCursorHistory((prev) => prev.slice(0, -1))
+    setCursor(previous)
+    void loadPage(previous)
+  }
+
+  const page = cursorHistory.length + 1
 
   return (
     <AppShell>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Documents</h1>
-          <p className="text-sm text-gray-500">Everything visible to your categories.</p>
+          <p className="text-sm text-gray-500">
+            {user?.role === 'AUTHOR' ? 'Documents you authored.' : 'Everything visible to your categories.'}
+          </p>
         </div>
         {user?.role === 'AUTHOR' && (
           <Link
@@ -74,40 +93,71 @@ export function DocumentListPage() {
 
       <ErrorMessage error={error} />
 
-      <ul className="mt-4 divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {documents.map((doc) => (
-          <li key={doc.id}>
-            <Link
-              to={`/documents/${doc.id}`}
-              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900">{doc.title}</p>
-                <p className="text-xs text-gray-500">{doc.category.name}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                Title
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                Category
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                Version
+              </th>
+              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {documents.map((doc) => (
+              <tr key={doc.id} className="transition-colors hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm">
+                  <Link to={`/documents/${doc.id}`} className="font-medium text-gray-900 hover:underline">
+                    {doc.title}
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-500">{doc.category.name}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">
                   {doc.currentVersion ? `v${doc.currentVersion.versionNumber}` : 'no version'}
-                </span>
-                {doc.currentVersion && <StatusBadge status={doc.currentVersion.status} />}
-              </div>
-            </Link>
-          </li>
-        ))}
-        {documents.length === 0 && !loading && (
-          <li className="px-4 py-10 text-center text-sm text-gray-500">No documents yet.</li>
-        )}
-      </ul>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {doc.currentVersion && <StatusBadge status={doc.currentVersion.status} />}
+                </td>
+              </tr>
+            ))}
+            {documents.length === 0 && !loading && (
+              <tr>
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-500">
+                  No documents yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {hasMore && (
-        <button
-          onClick={() => void loadPage(cursor)}
-          disabled={loading}
-          className="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-        >
-          {loading ? 'Loading…' : 'Load more'}
-        </button>
-      )}
+      <div className="mt-4 flex items-center justify-between">
+        <span className="text-xs text-gray-500">Page {page}</span>
+        <div className="flex gap-2">
+          <button
+            onClick={goPrevious}
+            disabled={loading || cursorHistory.length === 0}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <button
+            onClick={goNext}
+            disabled={loading || !nextCursor}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? 'Loading…' : 'Next'}
+          </button>
+        </div>
+      </div>
     </AppShell>
   )
 }

@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import type { Prisma, UserRole } from '@prisma/client'
 import { prisma } from './prisma.js'
 
 /**
@@ -21,13 +21,18 @@ export async function isCategoryMember(userId: string, categoryId: string): Prom
 }
 
 /**
- * Category membership is necessary but not sufficient: a DRAFT document is only
- * visible to its own author, never to other category members. Submitted (and
- * later) documents are visible to everyone in the category.
+ * Category membership is necessary but not sufficient:
+ * - An AUTHOR only ever sees their own documents (draft or submitted) — never
+ *   another author's work in the same category.
+ * - A REVIEWER sees every submitted (or later) document in their categories,
+ *   but never a DRAFT — drafts are only visible to the author who owns them.
  */
-export function documentVisibilityFilter(userId: string): Prisma.DocumentWhereInput {
+export function documentVisibilityFilter(userId: string, role: UserRole): Prisma.DocumentWhereInput {
+  if (role === 'AUTHOR') {
+    return { ...documentCategoryFilter(userId), authorId: userId }
+  }
   return {
     ...documentCategoryFilter(userId),
-    OR: [{ authorId: userId }, { versions: { some: { isCurrent: true, status: { not: 'DRAFT' } } } }],
+    versions: { some: { isCurrent: true, status: { not: 'DRAFT' } } },
   }
 }

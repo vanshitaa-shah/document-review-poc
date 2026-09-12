@@ -9,14 +9,14 @@ import { listQuerySchema } from '../../schemas/documents.schema.js'
 // Lists documents visible to the caller (own drafts + everyone's submitted+), cursor-paginated.
 export async function listDocuments(req: Request, res: Response) {
   const { cursor, limit = 20 } = getValidatedQuery(req, listQuerySchema)
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
 
   const documents = await prisma.document.findMany({
     where: {
       AND: [
-        documentVisibilityFilter(userId),
+        documentVisibilityFilter(userId, role),
         ...(cursorPage
           ? [
               {
