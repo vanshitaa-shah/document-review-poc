@@ -1,7 +1,15 @@
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { validate } from '../middleware/validate.js'
-import { approveVersion, downloadVersion, requestChanges } from '../controllers/versions/index.js'
+import {
+  approveVersion,
+  createComment,
+  downloadVersion,
+  getVersionContent,
+  listComments,
+  requestChanges,
+} from '../controllers/versions/index.js'
+import { commentsQuerySchema, createCommentSchema } from '../schemas/comments.schema.js'
 import {
   requestChangesBodySchema,
   versionIdParamSchema,
@@ -34,4 +42,29 @@ versionsRouter.get(
   requireAuth,
   validate({ params: versionIdParamSchema }),
   downloadVersion,
+)
+
+// Renderable text/HTML content for the inline-comment view.
+versionsRouter.get(
+  '/:id/content',
+  requireAuth,
+  validate({ params: versionIdParamSchema }),
+  getVersionContent,
+)
+
+// All comments on this version, newest first.
+versionsRouter.get(
+  '/:id/comments',
+  requireAuth,
+  validate({ params: versionIdParamSchema, query: commentsQuerySchema }),
+  listComments,
+)
+
+// Reviewer adds a highlighted (or version-level) comment; rejected once approved.
+versionsRouter.post(
+  '/:id/comments',
+  requireAuth,
+  requireRole('REVIEWER'),
+  validate({ params: versionIdParamSchema, body: createCommentSchema }),
+  createComment,
 )

@@ -1,3 +1,6 @@
 export { approveVersion } from './approve-version.js'
 export { requestChanges } from './request-changes.js'
 export { downloadVersion } from './download-version.js'
+export { getVersionContent } from './get-content.js'
+export { listComments } from './list-comments.js'
+export { createComment } from './create-comment.js'

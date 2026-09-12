@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router'
+import ReactMarkdown from 'react-markdown'
 import { api, ApiError } from '../lib/apiClient'
 import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { StatusBadge } from '../components/StatusBadge'
 import { FileInputHint } from '../components/FileInputHint'
+import { AnnotatedContent, type NewAnchoredComment, type StoredComment } from '../components/AnnotatedContent'
 import { auditActionLabel, formatBytes, formatDateTime } from '../lib/format'
 
 interface CategoryRef {
@@ -57,6 +59,11 @@ interface AuditRow {
   actor: UserRef
 }
 
+interface VersionContent {
+  format: 'text' | 'markdown' | 'html' | 'unsupported'
+  content: string | null
+}
+
 export function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { token, user } = useAuth()
@@ -71,6 +78,11 @@ export function DocumentDetailPage() {
 
   const [revisionFile, setRevisionFile] = useState<File | null>(null)
   const [comment, setComment] = useState('')
+
+  const [versionContent, setVersionContent] = useState<VersionContent | null>(null)
+  const [inlineComments, setInlineComments] = useState<StoredComment[]>([])
+  const [commentBusy, setCommentBusy] = useState(false)
+  const [versionLevelComment, setVersionLevelComment] = useState('')
 
   // `silent` is for the refresh after a failed action (e.g. a stale-version 409):
   // a revision landing mid-review can make the document DRAFT-and-hidden again for
@@ -102,6 +114,28 @@ export function DocumentDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const currentVersionId = document?.currentVersion?.id ?? null
+
+  const loadComments = useCallback(async () => {
+    if (!currentVersionId) return
+    try {
+      const [contentRes, commentsRes] = await Promise.all([
+        api.get<VersionContent>(`/versions/${currentVersionId}/content`, token),
+        api.get<{ items: StoredComment[] }>(`/versions/${currentVersionId}/comments`, token),
+      ])
+      setVersionContent(contentRes)
+      setInlineComments(commentsRes.items)
+    } catch {
+      // Non-fatal — the rest of the page still works without inline content/comments.
+      setVersionContent(null)
+      setInlineComments([])
+    }
+  }, [currentVersionId, token])
+
+  useEffect(() => {
+    void loadComments()
+  }, [loadComments])
 
   if (loading) {
     return (
@@ -168,6 +202,33 @@ export function DocumentDetailPage() {
       await api.post(`/versions/${current.id}/request-changes`, { comment }, token)
       setComment('')
     })
+  }
+
+  async function handleCreateAnchoredComment(payload: NewAnchoredComment) {
+    if (!current) return
+    setCommentBusy(true)
+    try {
+      await api.post(`/versions/${current.id}/comments`, payload, token)
+      await loadComments()
+    } finally {
+      setCommentBusy(false)
+    }
+  }
+
+  async function handleCreateVersionLevelComment(e: FormEvent) {
+    e.preventDefault()
+    if (!current || !versionLevelComment.trim()) return
+    setCommentBusy(true)
+    setActionError(null)
+    try {
+      await api.post(`/versions/${current.id}/comments`, { body: versionLevelComment }, token)
+      setVersionLevelComment('')
+      await loadComments()
+    } catch (err) {
+      setActionError(err)
+    } finally {
+      setCommentBusy(false)
+    }
   }
 
   async function handleDownload(versionId: string, fileName: string) {
@@ -292,6 +353,72 @@ export function DocumentDetailPage() {
           </form>
         )}
       </div>
+
+      {current && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-900">Content &amp; comments</h2>
+          <div className="mt-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            {!versionContent && <p className="text-sm text-gray-500">Loading…</p>}
+
+            {versionContent?.format === 'unsupported' && (
+              <p className="text-sm text-gray-500">
+                No inline preview for this file type — comments apply to the whole version.
+              </p>
+            )}
+
+            {versionContent && versionContent.format !== 'unsupported' && versionContent.content !== null && (
+              <AnnotatedContent
+                comments={inlineComments}
+                canAnnotate={isReviewer && current.status !== 'APPROVED'}
+                busy={commentBusy}
+                onCreate={handleCreateAnchoredComment}
+              >
+                {versionContent.format === 'text' && versionContent.content}
+                {versionContent.format === 'markdown' && <ReactMarkdown>{versionContent.content}</ReactMarkdown>}
+                {versionContent.format === 'html' && (
+                  <div dangerouslySetInnerHTML={{ __html: versionContent.content }} />
+                )}
+              </AnnotatedContent>
+            )}
+
+            {isReviewer && current.status !== 'APPROVED' && versionContent?.format === 'unsupported' && (
+              <form onSubmit={handleCreateVersionLevelComment} className="mt-3">
+                <textarea
+                  value={versionLevelComment}
+                  onChange={(e) => setVersionLevelComment(e.target.value)}
+                  placeholder="Add a comment on this version…"
+                  rows={2}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                />
+                <button
+                  type="submit"
+                  disabled={commentBusy || !versionLevelComment.trim()}
+                  className="mt-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Add comment
+                </button>
+              </form>
+            )}
+
+            {inlineComments.some((c) => c.anchorQuote === null) && (
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  General comments
+                </h3>
+                <ul className="mt-2 space-y-2">
+                  {inlineComments
+                    .filter((c) => c.anchorQuote === null)
+                    .map((c) => (
+                      <li key={c.id} className="text-sm text-gray-700">
+                        {c.body} <span className="text-xs text-gray-400">— {c.author.email}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-gray-900">Version history</h2>
