@@ -127,7 +127,7 @@ describe('review, approval, locking', () => {
     const auditActions = (
       await prisma.auditEvent.findMany({ where: { versionId }, orderBy: { timestamp: 'asc' } })
     ).map((e) => e.action)
-    expect(auditActions).toContain('VERSION_APPROVED')
+    expect(auditActions).toContain('APPROVED')
   })
 
   it('rejects approving a superseded version, naming the actual current version, and creates nothing', async () => {

@@ -35,7 +35,7 @@ export async function createDocument(req: Request, res: Response) {
     })
     await recordAuditEvent(tx, {
       actorId: userId,
-      action: 'DOCUMENT_CREATED',
+      action: 'DOCUMENT_UPLOADED',
       documentId: doc.id,
       versionId: version.id,
     })

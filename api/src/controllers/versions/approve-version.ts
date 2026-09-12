@@ -32,7 +32,7 @@ export async function approveVersion(req: Request, res: Response) {
     await tx.approval.create({ data: { versionId, approverId: userId } })
     await recordAuditEvent(tx, {
       actorId: userId,
-      action: 'VERSION_APPROVED',
+      action: 'APPROVED',
       documentId: version.documentId,
       versionId,
     })

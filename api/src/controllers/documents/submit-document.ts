@@ -32,7 +32,7 @@ export async function submitDocument(req: Request, res: Response) {
     })
     await recordAuditEvent(tx, {
       actorId: userId,
-      action: 'VERSION_SUBMITTED',
+      action: 'SUBMITTED',
       documentId: id,
       versionId: current!.id,
     })

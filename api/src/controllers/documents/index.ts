@@ -1,4 +1,5 @@
 export { listDocuments } from './list-documents.js'
+export { listAudit } from './list-audit.js'
 export { createDocument } from './create-document.js'
 export { submitDocument } from './submit-document.js'
 export { getDocument } from './get-document.js'

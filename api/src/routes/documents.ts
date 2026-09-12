@@ -5,6 +5,7 @@ import { upload } from '../lib/upload.js'
 import {
   createDocument,
   getDocument,
+  listAudit,
   listDocuments,
   listVersions,
   submitDocument,
@@ -60,4 +61,12 @@ documentsRouter.get(
   requireAuth,
   validate({ params: paramsSchema, query: versionsQuerySchema }),
   listVersions,
+)
+
+// Returns the audit trail for a document, newest first.
+documentsRouter.get(
+  '/:id/audit',
+  requireAuth,
+  validate({ params: paramsSchema, query: listQuerySchema }),
+  listAudit,
 )

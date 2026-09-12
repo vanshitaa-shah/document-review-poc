@@ -102,7 +102,7 @@ describe('versioning core', () => {
       })
     ).map((e) => e.action)
     expect(auditActions).toEqual([
-      'DOCUMENT_CREATED',
+      'DOCUMENT_UPLOADED',
       'VERSION_SUPERSEDED',
       'REVIEW_CANCELLED',
       'VERSION_UPLOADED',

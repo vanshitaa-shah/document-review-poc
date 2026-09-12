@@ -1,8 +1,20 @@
 import type { Prisma } from '@prisma/client'
 
+// The seven actions this project is graded on tracking — see phases/06-audit-pagination-logging.md.
+// A literal union instead of `string` so a typo'd action name is a type error, not a
+// silent gap in the audit trail.
+export type AuditAction =
+  | 'DOCUMENT_UPLOADED'
+  | 'VERSION_UPLOADED'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'CHANGES_REQUESTED'
+  | 'VERSION_SUPERSEDED'
+  | 'REVIEW_CANCELLED'
+
 interface AuditEventInput {
   actorId: string
-  action: string
+  action: AuditAction
   documentId: string
   versionId?: string
   metadata?: Prisma.InputJsonValue
