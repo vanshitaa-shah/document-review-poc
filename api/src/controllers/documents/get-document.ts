@@ -13,7 +13,10 @@ export async function getDocument(req: Request, res: Response) {
 
   const document = await prisma.document.findFirst({
     where: { id, ...documentVisibilityFilter(userId) },
-    include: { versions: { where: { isCurrent: true } } },
+    include: {
+      versions: { where: { isCurrent: true } },
+      category: { select: { id: true, name: true } },
+    },
   })
 
   if (!document) {

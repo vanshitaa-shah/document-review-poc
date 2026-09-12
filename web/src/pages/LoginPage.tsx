@@ -36,9 +36,15 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded border bg-white p-6 shadow-sm">
-        <h1 className="text-lg font-semibold text-gray-900">Sign in</h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-sm space-y-4 rounded-xl border border-gray-200 bg-white p-8 shadow-sm"
+      >
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Doc Review</h1>
+          <p className="text-sm text-gray-500">Sign in to review and approve documents.</p>
+        </div>
 
         <ErrorMessage error={error} />
 
@@ -52,7 +58,7 @@ export function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
           />
         </div>
 
@@ -66,14 +72,14 @@ export function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
           />
         </div>
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 disabled:opacity-50"
         >
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>

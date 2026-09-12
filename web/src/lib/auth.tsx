@@ -87,3 +87,16 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   return <>{children}</>
 }
+
+// Role guard for routes that only make sense for one role (the review queue,
+// the new-document form). Assumes RequireAuth already ran — sends anyone else
+// back to the document list rather than a blank/broken page.
+export function RequireRole({ role, children }: { role: AuthUser['role']; children: ReactNode }) {
+  const { user } = useAuth()
+
+  if (user?.role !== role) {
+    return <Navigate to="/documents" replace />
+  }
+
+  return <>{children}</>
+}

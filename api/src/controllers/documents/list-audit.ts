@@ -40,6 +40,7 @@ export async function listAudit(req: Request, res: Response) {
     },
     orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
     take: limit + 1,
+    include: { actor: { select: { id: true, email: true } } },
   })
 
   const hasMore = events.length > limit

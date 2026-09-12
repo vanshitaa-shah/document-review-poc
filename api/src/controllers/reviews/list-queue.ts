@@ -30,7 +30,10 @@ export async function listReviewQueue(req: Request, res: Response) {
     },
     orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
-    include: { document: true, uploadedBy: { select: { id: true, email: true } } },
+    include: {
+      document: { include: { category: { select: { id: true, name: true } } } },
+      uploadedBy: { select: { id: true, email: true } },
+    },
   })
 
   const hasMore = versions.length > limit

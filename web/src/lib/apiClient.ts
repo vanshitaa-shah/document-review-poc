@@ -24,12 +24,14 @@ export function setUnauthorizedHandler(handler: Unauthorized | null) {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
+  formData?: FormData
   token?: string | null
   signal?: AbortSignal
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {}
+  // FormData sets its own multipart boundary — never stamp a Content-Type on it.
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
@@ -40,6 +42,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const res = await fetch(path, {
     method: options.method ?? 'GET',
     headers,
+    ...(options.formData ? { body: options.formData } : {}),
     ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
     ...(options.signal && { signal: options.signal }),
   })
@@ -67,4 +70,6 @@ export const api = {
     request<T>(path, { method: 'GET', token, ...(signal && { signal }) }),
   post: <T>(path: string, body: unknown, token: string | null) =>
     request<T>(path, { method: 'POST', body, token }),
+  postForm: <T>(path: string, formData: FormData, token: string | null) =>
+    request<T>(path, { method: 'POST', formData, token }),
 }

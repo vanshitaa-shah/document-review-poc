@@ -27,7 +27,10 @@ export async function listVersions(req: Request, res: Response) {
     },
     orderBy: { versionNumber: 'desc' },
     take: limit + 1,
-    include: { uploadedBy: { select: { id: true, email: true } } },
+    include: {
+      uploadedBy: { select: { id: true, email: true } },
+      approval: { include: { approver: { select: { id: true, email: true } } } },
+    },
   })
 
   const hasMore = versions.length > limit
