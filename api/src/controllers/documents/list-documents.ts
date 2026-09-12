@@ -31,7 +31,10 @@ export async function listDocuments(req: Request, res: Response) {
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
-    include: { versions: { where: { isCurrent: true } } },
+    include: {
+      versions: { where: { isCurrent: true } },
+      category: { select: { id: true, name: true } },
+    },
   })
 
   const hasMore = documents.length > limit

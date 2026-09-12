@@ -2,6 +2,7 @@ import express from 'express'
 import { pinoHttp } from 'pino-http'
 import { prisma } from './lib/prisma.js'
 import { httpLoggerOptions } from './lib/logger.js'
+import { serveWebUi } from './lib/staticUi.js'
 import { authRouter } from './routes/auth.js'
 import { documentsRouter } from './routes/documents.js'
 import { reviewsRouter } from './routes/reviews.js'
@@ -24,5 +25,7 @@ app.use('/auth', authRouter)
 app.use('/documents', documentsRouter)
 app.use('/reviews', reviewsRouter)
 app.use('/versions', versionsRouter)
+
+serveWebUi(app)
 
 app.use(errorHandler)
