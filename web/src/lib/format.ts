@@ -3,16 +3,34 @@ export type VersionStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'CHANGES_REQUES
 interface StatusStyle {
   label: string
   className: string
+  dot: string
 }
 
-// Tailwind pairs for each version status — used by StatusBadge everywhere a
-// status shows up (list, detail, queue) so the same status always reads the same.
+// One style per version status — used by StatusBadge everywhere a status shows
+// up (list, detail, queue) so the same status always reads the same, GitHub
+// label-style: a tinted pill with a matching dot.
 export const STATUS_STYLES: Record<VersionStatus, StatusStyle> = {
-  DRAFT: { label: 'Draft', className: 'bg-gray-100 text-gray-700 ring-gray-500/20' },
-  SUBMITTED: { label: 'Submitted', className: 'bg-blue-50 text-blue-700 ring-blue-600/20' },
-  APPROVED: { label: 'Approved', className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
-  CHANGES_REQUESTED: { label: 'Changes requested', className: 'bg-amber-50 text-amber-800 ring-amber-600/20' },
-  SUPERSEDED: { label: 'Superseded', className: 'bg-gray-50 text-gray-500 ring-gray-500/20' },
+  DRAFT: { label: 'Draft', className: 'bg-[#f6f8fa] text-[#59636e] ring-1 ring-inset ring-[#d0d7de]', dot: '#59636e' },
+  SUBMITTED: {
+    label: 'Submitted',
+    className: 'bg-[#ddf4ff] text-[#0969da] ring-1 ring-inset ring-[#54aeff]/40',
+    dot: '#0969da',
+  },
+  APPROVED: {
+    label: 'Approved',
+    className: 'bg-[#dafbe1] text-[#1a7f37] ring-1 ring-inset ring-[#4ac26b]/40',
+    dot: '#1a7f37',
+  },
+  CHANGES_REQUESTED: {
+    label: 'Changes requested',
+    className: 'bg-[#fff8c5] text-[#7d4e00] ring-1 ring-inset ring-[#d4a72c]/40',
+    dot: '#9a6700',
+  },
+  SUPERSEDED: {
+    label: 'Superseded',
+    className: 'bg-[#f6f8fa] text-[#6e7781] ring-1 ring-inset ring-[#d0d7de]',
+    dot: '#afb8c1',
+  },
 }
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {

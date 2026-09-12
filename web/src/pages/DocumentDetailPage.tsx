@@ -7,8 +7,21 @@ import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { StatusBadge } from '../components/StatusBadge'
 import { FileInputHint } from '../components/FileInputHint'
+import { Avatar } from '../components/Avatar'
+import { CheckCircleIcon, ClockIcon } from '../components/Icons'
 import { AnnotatedContent, type NewAnchoredComment, type StoredComment } from '../components/AnnotatedContent'
 import { auditActionLabel, formatBytes, formatDateTime } from '../lib/format'
+import {
+  btnDefault,
+  btnPrimary,
+  btnWarning,
+  card,
+  fainterText,
+  mutedText,
+  pageHeading,
+  sectionHeading,
+  textarea,
+} from '../lib/ui'
 
 interface CategoryRef {
   id: string
@@ -140,7 +153,7 @@ export function DocumentDetailPage() {
   if (loading) {
     return (
       <AppShell>
-        <p className="text-sm text-gray-500">Loading…</p>
+        <p className={mutedText}>Loading…</p>
       </AppShell>
     )
   }
@@ -254,26 +267,31 @@ export function DocumentDetailPage() {
 
   return (
     <AppShell>
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className={`p-6 ${card}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{document.title}</h1>
-            <p className="mt-1 text-sm text-gray-500">{document.category.name}</p>
+            <h1 className={pageHeading}>{document.title}</h1>
+            <p className={`mt-1 ${mutedText}`}>{document.category.name}</p>
           </div>
           {current && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">v{current.versionNumber}</span>
+              <span className={fainterText}>v{current.versionNumber}</span>
               <StatusBadge status={current.status} />
             </div>
           )}
         </div>
 
-        <ErrorMessage error={actionError} />
+        <div className="mt-3">
+          <ErrorMessage error={actionError} />
+        </div>
 
         {currentRow?.approval && (
-          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Approved by {currentRow.approval.approver.email} on{' '}
-            {formatDateTime(currentRow.approval.approvedAt)} (v{currentRow.versionNumber})
+          <div className="mt-4 flex items-center gap-2 rounded-md border border-[#4ac26b]/40 bg-[#dafbe1] px-3 py-2 text-sm text-[#1a7f37]">
+            <CheckCircleIcon className="h-4 w-4 flex-shrink-0" />
+            <span>
+              Approved by {currentRow.approval.approver.email} on {formatDateTime(currentRow.approval.approvedAt)} (v
+              {currentRow.versionNumber})
+            </span>
           </div>
         )}
 
@@ -282,28 +300,20 @@ export function DocumentDetailPage() {
             {current.status === 'APPROVED' && (
               <button
                 onClick={() => void handleDownload(current.id, currentRow?.fileName ?? document.title)}
-                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                className={btnDefault}
               >
                 Download
               </button>
             )}
 
             {isAuthor && current.status === 'DRAFT' && (
-              <button
-                onClick={() => void handleSubmit()}
-                disabled={busy}
-                className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-gray-700 disabled:opacity-50"
-              >
+              <button onClick={() => void handleSubmit()} disabled={busy} className={btnPrimary}>
                 Submit for review
               </button>
             )}
 
             {isReviewer && current.status === 'SUBMITTED' && (
-              <button
-                onClick={() => void handleApprove()}
-                disabled={busy}
-                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50"
-              >
+              <button onClick={() => void handleApprove()} disabled={busy} className={btnPrimary}>
                 Approve
               </button>
             )}
@@ -311,20 +321,16 @@ export function DocumentDetailPage() {
         )}
 
         {isAuthor && current?.status !== 'APPROVED' && (
-          <form onSubmit={handleUploadRevision} className="mt-6 border-t border-gray-100 pt-4">
-            <h2 className="text-sm font-medium text-gray-900">Upload a revision</h2>
+          <form onSubmit={handleUploadRevision} className="mt-6 border-t border-[#d8dee4] pt-4">
+            <h2 className={sectionHeading}>Upload a revision</h2>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <input
                 type="file"
                 required
                 onChange={(e) => setRevisionFile(e.target.files?.[0] ?? null)}
-                className="text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+                className="text-sm text-[#1f2328] file:mr-3 file:rounded-md file:border-0 file:bg-[#f6f8fa] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#24292f] hover:file:bg-[#eaeef2]"
               />
-              <button
-                type="submit"
-                disabled={busy || !revisionFile}
-                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-              >
+              <button type="submit" disabled={busy || !revisionFile} className={btnDefault}>
                 Upload revision
               </button>
             </div>
@@ -333,21 +339,17 @@ export function DocumentDetailPage() {
         )}
 
         {isReviewer && current?.status === 'SUBMITTED' && (
-          <form onSubmit={handleRequestChanges} className="mt-6 border-t border-gray-100 pt-4">
-            <h2 className="text-sm font-medium text-gray-900">Request changes</h2>
+          <form onSubmit={handleRequestChanges} className="mt-6 border-t border-[#d8dee4] pt-4">
+            <h2 className={sectionHeading}>Request changes</h2>
             <textarea
               required
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Explain what needs to change…"
               rows={3}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              className={`mt-2 ${textarea}`}
             />
-            <button
-              type="submit"
-              disabled={busy || !comment.trim()}
-              className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 shadow-sm hover:bg-amber-100 disabled:opacity-50"
-            >
+            <button type="submit" disabled={busy || !comment.trim()} className={`mt-2 ${btnWarning}`}>
               Request changes
             </button>
           </form>
@@ -356,14 +358,12 @@ export function DocumentDetailPage() {
 
       {current && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-900">Content &amp; comments</h2>
-          <div className="mt-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            {!versionContent && <p className="text-sm text-gray-500">Loading…</p>}
+          <h2 className={sectionHeading}>Content &amp; comments</h2>
+          <div className={`mt-2 p-4 ${card}`}>
+            {!versionContent && <p className={mutedText}>Loading…</p>}
 
             {versionContent?.format === 'unsupported' && (
-              <p className="text-sm text-gray-500">
-                No inline preview for this file type — comments apply to the whole version.
-              </p>
+              <p className={mutedText}>No inline preview for this file type — comments apply to the whole version.</p>
             )}
 
             {versionContent && versionContent.format !== 'unsupported' && versionContent.content !== null && (
@@ -388,12 +388,12 @@ export function DocumentDetailPage() {
                   onChange={(e) => setVersionLevelComment(e.target.value)}
                   placeholder="Add a comment on this version…"
                   rows={2}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                  className={textarea}
                 />
                 <button
                   type="submit"
                   disabled={commentBusy || !versionLevelComment.trim()}
-                  className="mt-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                  className={`mt-2 ${btnDefault}`}
                 >
                   Add comment
                 </button>
@@ -401,16 +401,17 @@ export function DocumentDetailPage() {
             )}
 
             {inlineComments.some((c) => c.anchorQuote === null) && (
-              <div className="mt-4 border-t border-gray-100 pt-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  General comments
-                </h3>
+              <div className="mt-4 border-t border-[#d8dee4] pt-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[#59636e]">General comments</h3>
                 <ul className="mt-2 space-y-2">
                   {inlineComments
                     .filter((c) => c.anchorQuote === null)
                     .map((c) => (
-                      <li key={c.id} className="text-sm text-gray-700">
-                        {c.body} <span className="text-xs text-gray-400">— {c.author.email}</span>
+                      <li key={c.id} className="flex items-start gap-2 text-sm text-[#1f2328]">
+                        <Avatar email={c.author.email} size="sm" />
+                        <span>
+                          {c.body} <span className={fainterText}>— {c.author.email}</span>
+                        </span>
                       </li>
                     ))}
                 </ul>
@@ -421,10 +422,10 @@ export function DocumentDetailPage() {
       )}
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-gray-900">Version history</h2>
-        <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <h2 className={sectionHeading}>Version history</h2>
+        <div className={`mt-2 overflow-hidden ${card}`}>
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="bg-[#f6f8fa] text-xs uppercase tracking-wide text-[#59636e]">
               <tr>
                 <th className="px-4 py-2 font-medium">Version</th>
                 <th className="px-4 py-2 font-medium">Uploaded by</th>
@@ -433,22 +434,27 @@ export function DocumentDetailPage() {
                 <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[#d8dee4]">
               {versions.map((v) => (
-                <tr key={v.id}>
-                  <td className="px-4 py-2 font-medium text-gray-900">
+                <tr key={v.id} className="hover:bg-[#f6f8fa]">
+                  <td className="px-4 py-2.5 font-medium text-[#1f2328]">
                     v{v.versionNumber}
-                    <span className="ml-2 text-xs font-normal text-gray-400">{formatBytes(v.size)}</span>
+                    <span className={`ml-2 font-normal ${fainterText}`}>{formatBytes(v.size)}</span>
                   </td>
-                  <td className="px-4 py-2 text-gray-600">{v.uploadedBy.email}</td>
-                  <td className="px-4 py-2 text-gray-600">{formatDateTime(v.uploadedAt)}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2.5 text-[#3d444d]">
+                    <span className="flex items-center gap-1.5">
+                      <Avatar email={v.uploadedBy.email} size="sm" />
+                      {v.uploadedBy.email}
+                    </span>
+                  </td>
+                  <td className={`px-4 py-2.5 ${fainterText}`}>{formatDateTime(v.uploadedAt)}</td>
+                  <td className="px-4 py-2.5">
                     <StatusBadge status={v.status} />
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2.5 text-right">
                     <button
                       onClick={() => void handleDownload(v.id, v.fileName)}
-                      className="text-xs font-medium text-gray-500 underline hover:text-gray-900"
+                      className="text-xs font-medium text-[#0969da] hover:underline"
                     >
                       Download
                     </button>
@@ -461,17 +467,19 @@ export function DocumentDetailPage() {
       </section>
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-gray-900">Audit trail</h2>
-        <ul className="mt-2 space-y-1 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className={sectionHeading}>Audit trail</h2>
+        <ul className={`mt-2 space-y-3 p-4 ${card}`}>
           {audit.map((event) => (
-            <li key={event.id} className="flex items-center justify-between text-sm">
-              <span className="text-gray-800">
-                {auditActionLabel(event.action)} <span className="text-gray-400">· {event.actor.email}</span>
+            <li key={event.id} className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex items-center gap-2 text-[#1f2328]">
+                <ClockIcon className="h-3.5 w-3.5 flex-shrink-0 text-[#6e7781]" />
+                {auditActionLabel(event.action)}
+                <span className={fainterText}>· {event.actor.email}</span>
               </span>
-              <span className="text-xs text-gray-400">{formatDateTime(event.timestamp)}</span>
+              <span className={`flex-shrink-0 ${fainterText}`}>{formatDateTime(event.timestamp)}</span>
             </li>
           ))}
-          {audit.length === 0 && <li className="text-sm text-gray-500">No activity yet.</li>}
+          {audit.length === 0 && <li className={mutedText}>No activity yet.</li>}
         </ul>
       </section>
     </AppShell>

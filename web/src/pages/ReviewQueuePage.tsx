@@ -4,7 +4,10 @@ import { api } from '../lib/apiClient'
 import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
+import { Avatar } from '../components/Avatar'
+import { FileIcon } from '../components/Icons'
 import { formatDateTime } from '../lib/format'
+import { btnDefault, card, fainterText, mutedText, pageHeading } from '../lib/ui'
 
 interface QueueItem {
   id: string
@@ -56,41 +59,45 @@ export function ReviewQueuePage() {
 
   return (
     <AppShell>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Review queue</h1>
-        <p className="text-sm text-gray-500">Submitted versions waiting on your categories.</p>
+      <div className="mb-5">
+        <h1 className={pageHeading}>Review queue</h1>
+        <p className={`mt-0.5 ${mutedText}`}>Submitted versions waiting on your categories.</p>
       </div>
 
       <ErrorMessage error={error} />
 
-      <ul className="mt-4 divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {items.map((item) => (
-          <li key={item.id}>
-            <Link
-              to={`/documents/${item.documentId}`}
-              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900">{item.document.title}</p>
-                <p className="text-xs text-gray-500">
-                  {item.document.category.name} · v{item.versionNumber} · {item.uploadedBy.email}
-                </p>
-              </div>
-              <span className="text-xs text-gray-400">{formatDateTime(item.uploadedAt)}</span>
-            </Link>
-          </li>
-        ))}
-        {items.length === 0 && !loading && (
-          <li className="px-4 py-10 text-center text-sm text-gray-500">Nothing waiting on review.</li>
-        )}
-      </ul>
+      <div className={`mt-3 overflow-hidden ${card}`}>
+        <ul className="divide-y divide-[#d8dee4]">
+          {items.map((item) => (
+            <li key={item.id}>
+              <Link
+                to={`/documents/${item.documentId}`}
+                className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-[#f6f8fa]"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <FileIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#59636e]" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#0969da] hover:underline">
+                      {item.document.title}
+                    </p>
+                    <p className={`flex items-center gap-1.5 ${fainterText}`}>
+                      <Avatar email={item.uploadedBy.email} size="sm" />
+                      {item.document.category.name} · v{item.versionNumber} · {item.uploadedBy.email}
+                    </p>
+                  </div>
+                </div>
+                <span className={`flex-shrink-0 ${fainterText}`}>{formatDateTime(item.uploadedAt)}</span>
+              </Link>
+            </li>
+          ))}
+          {items.length === 0 && !loading && (
+            <li className={`px-4 py-10 text-center ${mutedText}`}>Nothing waiting on review.</li>
+          )}
+        </ul>
+      </div>
 
       {hasMore && (
-        <button
-          onClick={() => void loadPage(cursor)}
-          disabled={loading}
-          className="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-        >
+        <button onClick={() => void loadPage(cursor)} disabled={loading} className={`mt-4 ${btnDefault}`}>
           {loading ? 'Loading…' : 'Load more'}
         </button>
       )}

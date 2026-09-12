@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { FileInputHint } from '../components/FileInputHint'
+import { btnPrimary, card, input, label, pageHeading, mutedText, select } from '../lib/ui'
 
 interface Category {
   id: string
@@ -57,32 +58,23 @@ export function NewDocumentPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-lg">
-        <h1 className="text-xl font-semibold text-gray-900">New document</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className={pageHeading}>New document</h1>
+        <p className={`mt-1 ${mutedText}`}>
           Uploads version 1 as a draft. Submit it for review from the document page when ready.
         </p>
 
-        <form
-          onSubmit={handleSubmit}
-          className="mt-6 space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-        >
+        <form onSubmit={handleSubmit} className={`mt-6 space-y-4 p-6 ${card}`}>
           <ErrorMessage error={error} />
 
           <div className="space-y-1">
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="title" className={label}>
               Title
             </label>
-            <input
-              id="title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-            />
+            <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} className={input} />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="category" className={label}>
               Category
             </label>
             <select
@@ -90,7 +82,7 @@ export function NewDocumentPage() {
               required
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              className={select}
             >
               {categories.length === 0 && <option value="">No categories available</option>}
               {categories.map((c) => (
@@ -102,7 +94,7 @@ export function NewDocumentPage() {
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="file" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="file" className={label}>
               File
             </label>
             <input
@@ -110,16 +102,12 @@ export function NewDocumentPage() {
               type="file"
               required
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+              className="block w-full text-sm text-[#1f2328] file:mr-3 file:rounded-md file:border-0 file:bg-[#f6f8fa] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#24292f] hover:file:bg-[#eaeef2]"
             />
             <FileInputHint />
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting || categories.length === 0}
-            className="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={submitting || categories.length === 0} className={`${btnPrimary} w-full py-2`}>
             {submitting ? 'Uploading…' : 'Upload document'}
           </button>
         </form>
