@@ -1,17 +1,19 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { RequireAuth, RequireRole } from './lib/auth'
+import { Role, ROUTES } from './lib/constants'
 import { LoginPage } from './pages/LoginPage'
 import { DocumentListPage } from './pages/DocumentListPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
+import { DocumentHistoryPage } from './pages/DocumentHistoryPage'
 import { NewDocumentPage } from './pages/NewDocumentPage'
 import { ReviewQueuePage } from './pages/ReviewQueuePage'
 
 export function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path={ROUTES.login} element={<LoginPage />} />
       <Route
-        path="/documents"
+        path={ROUTES.documents}
         element={
           <RequireAuth>
             <DocumentListPage />
@@ -19,10 +21,10 @@ export function App() {
         }
       />
       <Route
-        path="/documents/new"
+        path={ROUTES.newDocument}
         element={
           <RequireAuth>
-            <RequireRole role="AUTHOR">
+            <RequireRole role={Role.AUTHOR}>
               <NewDocumentPage />
             </RequireRole>
           </RequireAuth>
@@ -37,17 +39,25 @@ export function App() {
         }
       />
       <Route
-        path="/reviews/queue"
+        path="/documents/:id/history"
         element={
           <RequireAuth>
-            <RequireRole role="REVIEWER">
+            <DocumentHistoryPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.reviewQueue}
+        element={
+          <RequireAuth>
+            <RequireRole role={Role.REVIEWER}>
               <ReviewQueuePage />
             </RequireRole>
           </RequireAuth>
         }
       />
-      <Route path="/" element={<Navigate to="/documents" replace />} />
-      <Route path="*" element={<Navigate to="/documents" replace />} />
+      <Route path="/" element={<Navigate to={ROUTES.documents} replace />} />
+      <Route path="*" element={<Navigate to={ROUTES.documents} replace />} />
     </Routes>
   )
 }

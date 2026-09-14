@@ -1,4 +1,4 @@
-export type VersionStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'CHANGES_REQUESTED' | 'SUPERSEDED'
+import { VersionStatus } from './constants'
 
 interface StatusStyle {
   label: string
@@ -32,6 +32,12 @@ export const STATUS_STYLES: Record<VersionStatus, StatusStyle> = {
     dot: '#afb8c1',
   },
 }
+
+// Drives the status filter dropdown — one {value, label} per status, in the
+// same order STATUS_STYLES declares them.
+export const VERSION_STATUS_OPTIONS: Array<{ value: VersionStatus; label: string }> = (
+  Object.keys(STATUS_STYLES) as VersionStatus[]
+).map((value) => ({ value, label: STATUS_STYLES[value].label }))
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   DOCUMENT_UPLOADED: 'Document uploaded',

@@ -9,11 +9,12 @@ import {
 } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { setUnauthorizedHandler } from './apiClient'
+import type { Role } from './constants'
 
 export interface AuthUser {
   id: string
   email: string
-  role: 'AUTHOR' | 'REVIEWER'
+  role: Role
 }
 
 interface AuthState {

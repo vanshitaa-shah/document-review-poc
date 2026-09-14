@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { FileInputHint } from '../components/FileInputHint'
+import { ROUTES } from '../lib/constants'
 import { btnPrimary, card, input, label, pageHeading, mutedText, select } from '../lib/ui'
 
 interface Category {
@@ -47,7 +48,7 @@ export function NewDocumentPage() {
       formData.append('categoryId', categoryId)
       formData.append('file', file)
       const document = await api.postForm<{ id: string }>('/documents', formData, token)
-      navigate(`/documents/${document.id}`)
+      navigate(ROUTES.documentDetail(document.id))
     } catch (err) {
       setError(err)
     } finally {

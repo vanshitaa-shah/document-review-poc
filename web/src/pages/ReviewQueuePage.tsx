@@ -6,8 +6,9 @@ import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Avatar } from '../components/Avatar'
 import { FileIcon } from '../components/Icons'
+import { ROUTES } from '../lib/constants'
 import { formatDateTime } from '../lib/format'
-import { btnDefault, card, fainterText, mutedText, pageHeading } from '../lib/ui'
+import { btnDefault, card, fainterText, mutedText, pageHeading, select } from '../lib/ui'
 
 interface QueueItem {
   id: string
@@ -26,9 +27,18 @@ interface QueueResponse {
   nextCursor: string | null
 }
 
+interface CategoryOption {
+  id: string
+  name: string
+}
+
+const ALL_CATEGORIES = ''
+
 export function ReviewQueuePage() {
   const { token } = useAuth()
   const [pages, setPages] = useState<QueueItem[][]>([])
+  const [categories, setCategories] = useState<CategoryOption[]>([])
+  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES)
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -38,8 +48,11 @@ export function ReviewQueuePage() {
     setLoading(true)
     setError(null)
     try {
-      const query = after ? `?cursor=${encodeURIComponent(after)}` : ''
-      const res = await api.get<QueueResponse>(`/reviews/queue${query}`, token)
+      const params = new URLSearchParams()
+      if (after) params.set('cursor', after)
+      if (categoryFilter) params.set('categoryId', categoryFilter)
+
+      const res = await api.get<QueueResponse>(`/reviews/queue?${params.toString()}`, token)
       setPages((prev) => (after ? [...prev, res.items] : [res.items]))
       setCursor(res.nextCursor)
       setHasMore(res.nextCursor !== null)
@@ -51,9 +64,18 @@ export function ReviewQueuePage() {
   }
 
   useEffect(() => {
-    void loadPage(null)
+    void api
+      .get<{ items: CategoryOption[] }>('/categories', token)
+      .then((res) => setCategories(res.items))
+      .catch(() => setCategories([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setCursor(null)
+    void loadPage(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter])
 
   const items = pages.flat()
 
@@ -61,7 +83,26 @@ export function ReviewQueuePage() {
     <AppShell>
       <div className="mb-5">
         <h1 className={pageHeading}>Review queue</h1>
-        <p className={`mt-0.5 ${mutedText}`}>Submitted versions waiting on your categories.</p>
+        <p className={`mt-0.5 ${mutedText}`}>Submitted versions waiting on your categories, newest first.</p>
+      </div>
+
+      <div className="mb-4">
+        <label htmlFor="queue-category-filter" className="mb-1 block text-xs font-medium text-[#59636e]">
+          Category
+        </label>
+        <select
+          id="queue-category-filter"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className={`${select} w-44`}
+        >
+          <option value={ALL_CATEGORIES}>All categories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <ErrorMessage error={error} />
@@ -71,7 +112,7 @@ export function ReviewQueuePage() {
           {items.map((item) => (
             <li key={item.id}>
               <Link
-                to={`/documents/${item.documentId}`}
+                to={ROUTES.documentDetail(item.documentId)}
                 className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-[#f6f8fa]"
               >
                 <div className="flex min-w-0 items-start gap-3">

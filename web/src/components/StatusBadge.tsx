@@ -1,4 +1,5 @@
-import { STATUS_STYLES, type VersionStatus } from '../lib/format'
+import { STATUS_STYLES } from '../lib/format'
+import type { VersionStatus } from '../lib/constants'
 import { DotIcon } from './Icons'
 
 export function StatusBadge({ status }: { status: string }) {

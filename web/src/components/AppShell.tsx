@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../lib/auth'
+import { Role, ROUTES } from '../lib/constants'
 import { Avatar } from './Avatar'
 import { LogoMark } from './Icons'
 
@@ -19,7 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[#f6f8fa]">
       <header className="bg-[#24292f] text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link to="/documents" className="flex items-center gap-2 font-semibold">
+          <Link to={ROUTES.documents} className="flex items-center gap-2 font-semibold">
             <LogoMark className="h-6 w-6" />
             <span>Doc Review</span>
           </Link>
@@ -44,16 +45,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-5 px-4 sm:px-6">
-          <NavLink to="/documents" className={tabClass} end>
+          <NavLink to={ROUTES.documents} className={tabClass} end>
             Documents
           </NavLink>
-          {user?.role === 'AUTHOR' && (
-            <NavLink to="/documents/new" className={tabClass}>
+          {user?.role === Role.AUTHOR && (
+            <NavLink to={ROUTES.newDocument} className={tabClass}>
               New document
             </NavLink>
           )}
-          {user?.role === 'REVIEWER' && (
-            <NavLink to="/reviews/queue" className={tabClass}>
+          {user?.role === Role.REVIEWER && (
+            <NavLink to={ROUTES.reviewQueue} className={tabClass}>
               Review queue
             </NavLink>
           )}
