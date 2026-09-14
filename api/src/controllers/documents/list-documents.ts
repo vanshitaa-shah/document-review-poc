@@ -4,11 +4,13 @@ import { documentVisibilityFilter } from '../../lib/categoryAccess.js'
 import { withCurrentVersion } from '../../lib/documentResponse.js'
 import { decodeCursor, encodeCursor } from '../../lib/pagination.js'
 import { getValidatedQuery } from '../../middleware/validate.js'
-import { listQuerySchema } from '../../schemas/documents.schema.js'
+import { documentListQuerySchema } from '../../schemas/documents.schema.js'
 
-// Lists documents visible to the caller (own drafts + everyone's submitted+), cursor-paginated.
+// Lists documents visible to the caller (own drafts + everyone's submitted+),
+// most-recently-changed first, cursor-paginated, optionally filtered by status
+// (of the current version) and/or category.
 export async function listDocuments(req: Request, res: Response) {
-  const { cursor, limit = 20 } = getValidatedQuery(req, listQuerySchema)
+  const { cursor, limit = 20, status, categoryId } = getValidatedQuery(req, documentListQuerySchema)
   const { id: userId, role } = req.user!
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
@@ -17,19 +19,21 @@ export async function listDocuments(req: Request, res: Response) {
     where: {
       AND: [
         documentVisibilityFilter(userId, role),
+        ...(categoryId ? [{ categoryId }] : []),
+        ...(status ? [{ versions: { some: { isCurrent: true, status } } }] : []),
         ...(cursorPage
           ? [
               {
                 OR: [
-                  { createdAt: { lt: cursorPage.createdAt } },
-                  { createdAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
+                  { updatedAt: { lt: cursorPage.createdAt } },
+                  { updatedAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
                 ],
               },
             ]
           : []),
       ],
     },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
     include: {
       versions: { where: { isCurrent: true } },
@@ -43,6 +47,6 @@ export async function listDocuments(req: Request, res: Response) {
 
   res.json({
     items: page.map(withCurrentVersion),
-    nextCursor: hasMore && last ? encodeCursor(last) : null,
+    nextCursor: hasMore && last ? encodeCursor({ createdAt: last.updatedAt, id: last.id }) : null,
   })
 }

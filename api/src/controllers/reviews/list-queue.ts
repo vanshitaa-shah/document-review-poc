@@ -7,7 +7,7 @@ import { queueQuerySchema } from '../../schemas/reviews.schema.js'
 
 // Current, submitted versions in the reviewer's categories — never drafts, never decided.
 export async function listReviewQueue(req: Request, res: Response) {
-  const { cursor, limit = 20 } = getValidatedQuery(req, queueQuerySchema)
+  const { cursor, limit = 20, categoryId } = getValidatedQuery(req, queueQuerySchema)
   const { id: userId } = req.user!
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
@@ -16,6 +16,7 @@ export async function listReviewQueue(req: Request, res: Response) {
     where: {
       AND: [
         { isCurrent: true, status: 'SUBMITTED', ...documentVersionCategoryFilter(userId) },
+        ...(categoryId ? [{ document: { categoryId } }] : []),
         ...(cursorPage
           ? [
               {

@@ -13,6 +13,7 @@ import {
 } from '../controllers/documents/index.js'
 import {
   createDocumentSchema,
+  documentListQuerySchema,
   listQuerySchema,
   paramsSchema,
   versionsQuerySchema,
@@ -21,7 +22,7 @@ import {
 export const documentsRouter = Router()
 
 // Lists documents visible to the caller, filtered by category and draft visibility.
-documentsRouter.get('/', requireAuth, validate({ query: listQuerySchema }), listDocuments)
+documentsRouter.get('/', requireAuth, validate({ query: documentListQuerySchema }), listDocuments)
 
 // Creates a document and its version 1 (current, DRAFT) from an uploaded file.
 documentsRouter.post(

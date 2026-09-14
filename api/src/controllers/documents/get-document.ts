@@ -14,7 +14,10 @@ export async function getDocument(req: Request, res: Response) {
   const document = await prisma.document.findFirst({
     where: { id, ...documentVisibilityFilter(userId, role) },
     include: {
-      versions: { where: { isCurrent: true } },
+      versions: {
+        where: { isCurrent: true },
+        include: { approval: { include: { approver: { select: { id: true, email: true } } } } },
+      },
       category: { select: { id: true, name: true } },
     },
   })

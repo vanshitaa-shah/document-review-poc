@@ -11,4 +11,5 @@ export const requestChangesBodySchema = z.object({
 export const queueQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  categoryId: z.string().uuid().optional(),
 })

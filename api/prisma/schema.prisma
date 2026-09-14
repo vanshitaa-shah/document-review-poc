@@ -71,13 +71,17 @@ model Document {
   categoryId String
   authorId   String
   createdAt  DateTime @default(now())
+  // Touched by every workflow action that changes this document (submit, revision
+  // upload, approve, request-changes) — never by comments. Drives the "most
+  // recently changed first" default sort on the document list.
+  updatedAt  DateTime @default(now())
 
   category Category          @relation(fields: [categoryId], references: [id])
   author   User              @relation("DocumentAuthor", fields: [authorId], references: [id])
   versions DocumentVersion[]
   auditEvents AuditEvent[]
 
-  @@index([categoryId, createdAt])
+  @@index([categoryId, updatedAt])
 }
 
 model DocumentVersion {

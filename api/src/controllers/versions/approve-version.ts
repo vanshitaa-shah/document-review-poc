@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { prisma } from '../../lib/prisma.js'
 import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
+import { touchDocument } from '../../lib/documentActivity.js'
 import { throwStaleVersionConflict } from '../../lib/reviewConflict.js'
 import { NotFoundError } from '../../lib/errors.js'
 import { versionParamsSchema } from '../../schemas/reviews.schema.js'
@@ -36,6 +37,7 @@ export async function approveVersion(req: Request, res: Response) {
       documentId: version.documentId,
       versionId,
     })
+    await touchDocument(tx, version.documentId)
   })
 
   res.status(204).send()

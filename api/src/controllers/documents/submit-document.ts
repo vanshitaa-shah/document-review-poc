@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { prisma } from '../../lib/prisma.js'
 import { documentCategoryFilter } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
+import { touchDocument } from '../../lib/documentActivity.js'
 import { ConflictError, NotFoundError } from '../../lib/errors.js'
 import { paramsSchema } from '../../schemas/documents.schema.js'
 
@@ -36,6 +37,7 @@ export async function submitDocument(req: Request, res: Response) {
       documentId: id,
       versionId: current!.id,
     })
+    await touchDocument(tx, id)
   })
 
   res.status(204).send()

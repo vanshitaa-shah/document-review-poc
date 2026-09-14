@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { prisma } from '../../lib/prisma.js'
 import { documentCategoryFilter } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
+import { touchDocument } from '../../lib/documentActivity.js'
 import { withSerializableRetry } from '../../lib/dbRetry.js'
 import { ConflictError, NotFoundError } from '../../lib/errors.js'
 import { requireFile, versionFileFields } from '../../lib/uploadedFile.js'
@@ -92,6 +93,7 @@ export async function uploadVersion(req: Request, res: Response) {
           documentId,
           versionId: created.id,
         })
+        await touchDocument(tx, documentId)
 
         return created
       },
