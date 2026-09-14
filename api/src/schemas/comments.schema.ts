@@ -1,25 +1,17 @@
 import { z } from 'zod'
 
-// Anchor fields are all-or-nothing: a highlighted comment carries quote+start+end
-// together, a version-level comment (the PDF fallback) carries none of them.
-export const createCommentSchema = z
-  .object({
-    body: z.string().min(1, 'Comment body is required'),
-    anchorQuote: z.string().min(1).optional(),
-    anchorPrefix: z.string().optional(),
-    anchorSuffix: z.string().optional(),
-    anchorStart: z.number().int().nonnegative().optional(),
-    anchorEnd: z.number().int().nonnegative().optional(),
-  })
-  .refine(
-    (data) => {
-      const anchorGiven = [data.anchorQuote, data.anchorStart, data.anchorEnd]
-      const allGiven = anchorGiven.every((f) => f !== undefined)
-      const noneGiven = anchorGiven.every((f) => f === undefined)
-      return allGiven || noneGiven
-    },
-    { message: 'anchorQuote, anchorStart and anchorEnd must be given together, or not at all' },
-  )
+// Every comment is anchored to a highlighted passage — quote, surrounding
+// context, and character offsets are all required. There is no version-level
+// (generic) comment anymore: a reviewer always highlights the text they're
+// commenting on.
+export const createCommentSchema = z.object({
+  body: z.string().min(1, 'Comment body is required'),
+  anchorQuote: z.string().min(1, 'Highlighted text is required'),
+  anchorPrefix: z.string().optional(),
+  anchorSuffix: z.string().optional(),
+  anchorStart: z.number().int().nonnegative(),
+  anchorEnd: z.number().int().nonnegative(),
+})
 
 export const commentsQuerySchema = z.object({
   cursor: z.string().optional(),

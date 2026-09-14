@@ -12,7 +12,8 @@ the highlight against that exact text. Medium-style.
 - `.txt` — render as-is in a `<pre>`
 - `.md` — `react-markdown`
 - `.docx` — `mammoth` converts to HTML (server-side, cached per version)
-- `.pdf` — no highlighting. Falls back to version-level comments only.
+- `.pdf` — no highlighting, and no commenting. Every comment is anchored to
+  rendered text; there is no version-level (generic) comment.
 - `GET /versions/:id/content` — returns the renderable text/HTML for a version
 
 **Annotation layer**
@@ -34,8 +35,15 @@ the highlight against that exact text. Medium-style.
   the old version, then uploads the fix. Nothing is lost, it just doesn't follow
   the text forward.
 
+**Who can comment**
+- Any reviewer with category access to the document, not just whoever requested
+  changes — access is the same `documentVersionCategoryFilter` predicate as everything
+  else, no separate "assigned reviewer" concept
+- Any number of reviewers can highlight and comment on the same version, as long as
+  it isn't APPROVED yet
+
 **Endpoints**
-- `POST /versions/:id/comments` — body + anchor
+- `POST /versions/:id/comments` — body + anchor (anchor is required, not optional)
 - `GET /versions/:id/comments` — all comments for that version
 - Category access enforced on both
 - Reject comments on an APPROVED version (it's locked)

@@ -6,9 +6,9 @@ import { ConflictError, NotFoundError } from '../../lib/errors.js'
 import { createCommentSchema } from '../../schemas/comments.schema.js'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
 
-// Reviewer comments on a version — a highlighted passage (quote+prefix+suffix+
-// offsets) or, for formats with no inline rendering (PDF), a version-level
-// comment with no anchor at all. Rejected once the version is APPROVED and locked.
+// Any reviewer with category access to this version can add a highlighted
+// comment — not just whoever requested changes on it. Rejected once the
+// version is APPROVED and locked.
 export async function createComment(req: Request, res: Response) {
   const { id: versionId } = req.params as z.infer<typeof versionIdParamSchema>
   const { body, anchorQuote, anchorPrefix, anchorSuffix, anchorStart, anchorEnd } = req.body as z.infer<
@@ -32,16 +32,11 @@ export async function createComment(req: Request, res: Response) {
       versionId,
       authorId: userId,
       body,
-      // Zod's refine guarantees quote/start/end are given together or not at all.
-      ...(anchorQuote !== undefined && anchorStart !== undefined && anchorEnd !== undefined
-        ? {
-            anchorQuote,
-            anchorPrefix: anchorPrefix ?? null,
-            anchorSuffix: anchorSuffix ?? null,
-            anchorStart,
-            anchorEnd,
-          }
-        : {}),
+      anchorQuote,
+      anchorPrefix: anchorPrefix ?? null,
+      anchorSuffix: anchorSuffix ?? null,
+      anchorStart,
+      anchorEnd,
     },
     include: { author: { select: { id: true, email: true } } },
   })

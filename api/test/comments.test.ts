@@ -219,15 +219,49 @@ describe('inline comments', () => {
     expect(res.status).toBe(400)
   })
 
-  it('accepts a version-level comment with no anchor at all (the PDF fallback)', async () => {
-    const doc = await createDocument('Version level comment', 'v1.pdf', '%PDF-1.4 fake')
+  it('rejects a comment with no anchor at all — there is no version-level comment', async () => {
+    const doc = await createDocument('No anchor', 'v1.txt', 'content')
     await request(app).post(`/documents/${doc.id}/submit`).set('Authorization', `Bearer ${authorToken}`)
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
       .set('Authorization', `Bearer ${reviewerToken}`)
       .send({ body: 'General feedback on the whole document' })
-    expect(res.status).toBe(201)
-    expect(res.body.anchorQuote).toBeNull()
+    expect(res.status).toBe(400)
+  })
+
+  it('lets a second reviewer in the same category comment on top of the first', async () => {
+    const doc = await createDocument('Multiple reviewers', 'v1.txt', 'The quick brown fox jumps')
+    await request(app).post(`/documents/${doc.id}/submit`).set('Authorization', `Bearer ${authorToken}`)
+
+    const secondReviewer = await prisma.user.create({
+      data: {
+        email: `comments-reviewer2-${suffix}@example.com`,
+        passwordHash: await bcrypt.hash('password123', 10),
+        role: 'REVIEWER',
+      },
+    })
+    await prisma.categoryMembership.create({ data: { userId: secondReviewer.id, categoryId } })
+    const secondReviewerToken = signAuthToken({ sub: secondReviewer.id, role: 'REVIEWER' })
+
+    for (const [token, quote, start, end] of [
+      [reviewerToken, 'quick', 4, 9],
+      [secondReviewerToken, 'brown', 10, 15],
+    ] as const) {
+      const res = await request(app)
+        .post(`/versions/${doc.currentVersion.id}/comments`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ body: `comment on ${quote}`, anchorQuote: quote, anchorStart: start, anchorEnd: end })
+      expect(res.status).toBe(201)
+    }
+
+    const list = await request(app)
+      .get(`/versions/${doc.currentVersion.id}/comments`)
+      .set('Authorization', `Bearer ${authorToken}`)
+    expect(list.body.items).toHaveLength(2)
+
+    await prisma.comment.deleteMany({ where: { versionId: doc.currentVersion.id } })
+    await prisma.categoryMembership.deleteMany({ where: { userId: secondReviewer.id } })
+    await prisma.user.delete({ where: { id: secondReviewer.id } })
   })
 
   it('rejects commenting on an approved version and creates nothing', async () => {
@@ -240,7 +274,7 @@ describe('inline comments', () => {
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
       .set('Authorization', `Bearer ${reviewerToken}`)
-      .send({ body: 'too late' })
+      .send({ body: 'too late', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
     expect(res.status).toBe(409)
 
     const count = await prisma.comment.count({ where: { versionId: doc.currentVersion.id } })
@@ -264,7 +298,7 @@ describe('inline comments', () => {
     const postRes = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
       .set('Authorization', `Bearer ${outsiderToken}`)
-      .send({ body: 'not allowed' })
+      .send({ body: 'not allowed', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
     expect(postRes.status).toBe(404)
   })
 
@@ -276,7 +310,7 @@ describe('inline comments', () => {
     await request(app)
       .post(`/versions/${v1Id}/comments`)
       .set('Authorization', `Bearer ${reviewerToken}`)
-      .send({ body: 'comment on v1' })
+      .send({ body: 'comment on v1', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
 
     const upload = await request(app)
       .post(`/documents/${doc.id}/versions`)

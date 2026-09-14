@@ -60,7 +60,7 @@ versionsRouter.get(
   listComments,
 )
 
-// Reviewer adds a highlighted (or version-level) comment; rejected once approved.
+// Any reviewer with category access adds a highlighted comment; rejected once approved.
 versionsRouter.post(
   '/:id/comments',
   requireAuth,

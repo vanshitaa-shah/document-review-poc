@@ -14,8 +14,8 @@ import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
 // server-side and cached, html is served as-is (already the target format).
 // Anchor offsets are computed client-side against whatever is actually
 // rendered — see AnnotatedContent.tsx — so the format doesn't need to match
-// the raw file byte-for-byte. pdf has no inline rendering; callers fall back
-// to version-level comments only.
+// the raw file byte-for-byte. pdf has no inline rendering, so it has no
+// commenting either — every comment is anchored to rendered text.
 export async function getVersionContent(req: Request, res: Response) {
   const { id } = req.params as z.infer<typeof versionIdParamSchema>
   const { id: userId } = req.user!

@@ -61,9 +61,6 @@ export function DocumentDetailPage() {
           inlineComments={detail.inlineComments}
           commentBusy={detail.commentBusy}
           onCreateAnchoredComment={detail.handleCreateAnchoredComment}
-          versionLevelComment={detail.versionLevelComment}
-          onVersionLevelCommentChange={detail.setVersionLevelComment}
-          onCreateVersionLevelComment={detail.handleCreateVersionLevelComment}
         />
       )}
     </AppShell>

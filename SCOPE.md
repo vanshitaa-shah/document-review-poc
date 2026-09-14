@@ -21,7 +21,8 @@
 - `@recogito/react-text-annotator` — text selection, highlight rendering, comment anchors
 - `mammoth` — converts `.docx` to HTML so it can be highlighted
 - `react-markdown` — renders `.md`
-- `.txt` renders as-is; `.pdf` gets version-level comments only, no highlighting
+- `.txt` renders as-is; `.pdf` has no highlighting and no commenting — every comment
+  is anchored to rendered text, there is no version-level (generic) comment
 
 **Logging**
 - `pino` — structured JSON logs from the app
@@ -64,12 +65,15 @@
 - Download approved version + its approval record
 
 **Inline comments**
-- Reviewer selects a word, line or passage and comments on it
+- Any reviewer with category access to the document selects a word, line or passage
+  and comments on it — not just whoever requested changes; any number of reviewers
+  can comment on the same version as long as it isn't approved yet
 - Author and reviewer both see the highlight and the comment against that exact text
 - Anchors stored as quote + character offsets, tied to **one specific version**
 - Comments **stay on the version they were made on** — a new version starts clean, and the
   old version's comments remain visible in history
-- `.txt`, `.md`, `.docx` support highlighting; `.pdf` gets version-level comments only
+- `.txt`, `.md`, `.docx` support highlighting; `.pdf` supports neither highlighting nor
+  commenting — there is no version-level (generic) comment
 
 **Access control**
 - Category ↔ User membership; a user has one role and can belong to many categories

@@ -115,7 +115,6 @@ function CommentPopup({
 
   return (
     <div className="w-72 rounded-md border border-gray-200 bg-white p-3 shadow-lg">
-      <p className="mb-2 truncate text-xs italic text-gray-500">“{selector?.quote}”</p>
       <ErrorMessage error={error} />
       <textarea
         autoFocus

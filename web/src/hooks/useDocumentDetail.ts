@@ -57,7 +57,6 @@ export function useDocumentDetail(id: string | undefined) {
   const [versionContent, setVersionContent] = useState<VersionContent | null>(null)
   const [inlineComments, setInlineComments] = useState<StoredComment[]>([])
   const [commentBusy, setCommentBusy] = useState(false)
-  const [versionLevelComment, setVersionLevelComment] = useState('')
 
   // `silent` is for the refresh after a failed action (e.g. a stale-version 409):
   // a revision landing mid-review can make the document DRAFT-and-hidden again for
@@ -167,22 +166,6 @@ export function useDocumentDetail(id: string | undefined) {
     }
   }
 
-  async function handleCreateVersionLevelComment(e: FormEvent) {
-    e.preventDefault()
-    if (!current || !versionLevelComment.trim()) return
-    setCommentBusy(true)
-    setActionError(null)
-    try {
-      await api.post(`/versions/${current.id}/comments`, { body: versionLevelComment }, token)
-      setVersionLevelComment('')
-      await loadComments()
-    } catch (err) {
-      setActionError(err)
-    } finally {
-      setCommentBusy(false)
-    }
-  }
-
   async function handleDownload(versionId: string, fileName: string) {
     try {
       const res = await fetch(`/versions/${versionId}/download`, {
@@ -220,14 +203,11 @@ export function useDocumentDetail(id: string | undefined) {
     versionContent,
     inlineComments,
     commentBusy,
-    versionLevelComment,
-    setVersionLevelComment,
     handleSubmit,
     handleUploadRevision,
     handleApprove,
     handleRequestChanges,
     handleCreateAnchoredComment,
-    handleCreateVersionLevelComment,
     handleDownload,
   }
 }
