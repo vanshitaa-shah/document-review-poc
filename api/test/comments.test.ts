@@ -147,6 +147,22 @@ describe('inline comments', () => {
     expect(second.body.content).toBe(res.body.content)
   })
 
+  it('renders .html content and strips scripts and event handlers', async () => {
+    const doc = await createDocument(
+      'Html content',
+      'v1.html',
+      '<p onclick="alert(1)">Hello <strong>world</strong></p><script>alert(1)</script>',
+    )
+    const res = await request(app)
+      .get(`/versions/${doc.currentVersion.id}/content`)
+      .set('Authorization', `Bearer ${authorToken}`)
+    expect(res.status).toBe(200)
+    expect(res.body.format).toBe('html')
+    expect(res.body.content).toContain('Hello <strong>world</strong>')
+    expect(res.body.content).not.toContain('<script')
+    expect(res.body.content).not.toContain('onclick')
+  })
+
   it('reports pdf as unsupported for inline rendering', async () => {
     const doc = await createDocument('Pdf content', 'v1.pdf', '%PDF-1.4 fake')
     const res = await request(app)

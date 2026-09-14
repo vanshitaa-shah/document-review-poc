@@ -4,7 +4,7 @@ import path from 'node:path'
 import multer from 'multer'
 import { ValidationError } from './errors.js'
 
-export const ALLOWED_EXTENSIONS = new Set(['.txt', '.pdf', '.md', '.docx'])
+export const ALLOWED_EXTENSIONS = new Set(['.txt', '.pdf', '.md', '.docx', '.html'])
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 const uploadDir = process.env.UPLOAD_DIR ?? './uploads'

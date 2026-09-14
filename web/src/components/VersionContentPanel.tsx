@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react'
+import parseHtml from 'html-react-parser'
 import ReactMarkdown from 'react-markdown'
 import { VersionStatus } from '../lib/constants'
 import { card, mutedText, sectionHeading } from '../lib/ui'
@@ -56,7 +57,7 @@ export function VersionContentPanel({
           >
             {versionContent.format === 'text' && versionContent.content}
             {versionContent.format === 'markdown' && <ReactMarkdown>{versionContent.content}</ReactMarkdown>}
-            {versionContent.format === 'html' && <div dangerouslySetInnerHTML={{ __html: versionContent.content }} />}
+            {versionContent.format === 'html' && <div>{parseHtml(versionContent.content)}</div>}
           </AnnotatedContent>
         )}
 

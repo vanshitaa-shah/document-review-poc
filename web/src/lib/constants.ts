@@ -20,7 +20,7 @@ export type VersionStatus = (typeof VersionStatus)[keyof typeof VersionStatus]
 export const DOCUMENT_LIST_PAGE_SIZE = 10
 
 // Client-side hint only — the server (api/src/lib/upload.ts) is the real validator.
-export const ALLOWED_UPLOAD_EXTENSIONS = ['.txt', '.pdf', '.md', '.docx']
+export const ALLOWED_UPLOAD_EXTENSIONS = ['.txt', '.pdf', '.md', '.docx', '.html']
 export const MAX_UPLOAD_MB = 10
 
 export const ROUTES = {
