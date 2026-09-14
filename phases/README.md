@@ -15,6 +15,7 @@ The scope in [../SCOPE.md](../SCOPE.md), split into 11 phases across 12 days.
 | [08](08-ui-document-workflow.md) | UI document workflow | 10 | 07 |
 | [09](09-inline-comments.md) | Inline comments | 11 | 08 |
 | [10](10-hardening-and-demo.md) | Hardening & demo | 12 | all |
+| [11](11-version-diff.md) | Version diff view | post-plan | 09 |
 
 ## Priority
 

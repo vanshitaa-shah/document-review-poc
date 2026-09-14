@@ -13,6 +13,8 @@
     "@annotorious/core": "^3.8.10",
     "@annotorious/react": "^3.8.10",
     "@recogito/react-text-annotator": "^4.3.1",
+    "diff": "^7.0.0",
+    "html-react-parser": "^6.1.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/diff": "^6.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.1.1",

@@ -8,6 +8,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { StatusBadge } from '../components/StatusBadge'
 import { Avatar } from '../components/Avatar'
 import { ClockIcon } from '../components/Icons'
+import { VersionDiffView } from '../components/VersionDiffView'
 import { auditActionLabel, formatBytes, formatDateTime } from '../lib/format'
 import { card, fainterText, mutedText, sectionHeading } from '../lib/ui'
 
@@ -67,6 +68,7 @@ export function DocumentHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
   const [downloadError, setDownloadError] = useState<unknown>(null)
+  const [compareVersion, setCompareVersion] = useState<VersionRow | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -173,6 +175,14 @@ export function DocumentHistoryPage() {
                     >
                       Download
                     </button>
+                    {v.versionNumber > 1 && (
+                      <button
+                        onClick={() => setCompareVersion(v)}
+                        className="ml-3 text-xs font-medium text-[#0969da] hover:underline"
+                      >
+                        Compare with previous
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -187,6 +197,22 @@ export function DocumentHistoryPage() {
           </table>
         </div>
       </section>
+
+      {compareVersion &&
+        (() => {
+          const previous = versions.find((v) => v.versionNumber === compareVersion.versionNumber - 1)
+          if (!previous) return null
+          return (
+            <VersionDiffView
+              currentVersionId={compareVersion.id}
+              previousVersionId={previous.id}
+              currentVersionNumber={compareVersion.versionNumber}
+              previousVersionNumber={previous.versionNumber}
+              token={token}
+              onClose={() => setCompareVersion(null)}
+            />
+          )
+        })()}
 
       <section className="mt-6">
         <h2 className={sectionHeading}>Audit trail</h2>
