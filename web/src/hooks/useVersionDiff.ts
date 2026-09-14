@@ -24,7 +24,7 @@ function extractDiffableText(res: VersionContentResponse | null): string | null 
 // Word-level diff between a version and its immediate predecessor. Both
 // contents come from the same category-access-checked endpoint already used
 // by the Overview tab, so there is no new authorization surface here.
-export function useVersionDiff(currentVersionId: string | null, previousVersionId: string | null, token: string | null) {
+export function useVersionDiff(currentVersionId: string | null, previousVersionId: string | null) {
   const [parts, setParts] = useState<DiffPart[] | null>(null)
   const [unsupported, setUnsupported] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -43,8 +43,8 @@ export function useVersionDiff(currentVersionId: string | null, previousVersionI
     setUnsupported(false)
 
     Promise.all([
-      api.get<VersionContentResponse>(`/versions/${currentVersionId}/content`, token),
-      api.get<VersionContentResponse>(`/versions/${previousVersionId}/content`, token),
+      api.get<VersionContentResponse>(`/versions/${currentVersionId}/content`),
+      api.get<VersionContentResponse>(`/versions/${previousVersionId}/content`),
     ])
       .then(([current, previous]) => {
         if (cancelled) return
@@ -66,7 +66,7 @@ export function useVersionDiff(currentVersionId: string | null, previousVersionI
     return () => {
       cancelled = true
     }
-  }, [currentVersionId, previousVersionId, token])
+  }, [currentVersionId, previousVersionId])
 
   return { parts, unsupported, loading, error }
 }

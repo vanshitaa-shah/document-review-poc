@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser'
 import express from 'express'
 import { pinoHttp } from 'pino-http'
 import { prisma } from './lib/prisma.js'
@@ -16,6 +17,7 @@ export const app = express()
 // pino-http attaches as req.log — see lib/logger.ts for redaction and OTLP shipping.
 app.use(pinoHttp(httpLoggerOptions))
 app.use(express.json())
+app.use(cookieParser())
 
 app.get('/health', async (_req, res) => {
   await prisma.$queryRaw`SELECT 1`

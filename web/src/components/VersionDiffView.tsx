@@ -10,17 +10,15 @@ export function VersionDiffView({
   previousVersionId,
   currentVersionNumber,
   previousVersionNumber,
-  token,
   onClose,
 }: {
   currentVersionId: string
   previousVersionId: string
   currentVersionNumber: number
   previousVersionNumber: number
-  token: string | null
   onClose: () => void
 }) {
-  const { parts, unsupported, loading, error } = useVersionDiff(currentVersionId, previousVersionId, token)
+  const { parts, unsupported, loading, error } = useVersionDiff(currentVersionId, previousVersionId)
 
   return (
     <section className="mt-4">

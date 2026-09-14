@@ -75,7 +75,7 @@ describe('concurrency races', () => {
   async function seedSubmittedVersion() {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', `Race ${randomUUID()}`)
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('v1 content'), 'v1.txt')
@@ -85,7 +85,7 @@ describe('concurrency races', () => {
 
     await request(app)
       .post(`/documents/${documentId}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     await prisma.review.create({ data: { versionId, reviewerId, status: 'PENDING' } })
 
     return { documentId, versionId }
@@ -107,11 +107,11 @@ describe('concurrency races', () => {
       const [uploadResult, approveResult] = await Promise.allSettled([
         request(app)
           .post(`/documents/${documentId}/versions`)
-          .set('Authorization', `Bearer ${authorToken}`)
+          .set('Cookie', `auth_token=${authorToken}`)
           .attach('file', Buffer.from('v2 content'), 'v2.txt'),
         request(app)
           .post(`/versions/${versionId}/approve`)
-          .set('Authorization', `Bearer ${reviewerToken}`),
+          .set('Cookie', `auth_token=${reviewerToken}`),
       ])
       assertNoServerErrors([uploadResult, approveResult])
 
@@ -144,8 +144,8 @@ describe('concurrency races', () => {
       const { documentId, versionId } = await seedSubmittedVersion()
 
       const [resA, resB] = await Promise.allSettled([
-        request(app).post(`/versions/${versionId}/approve`).set('Authorization', `Bearer ${reviewerToken}`),
-        request(app).post(`/versions/${versionId}/approve`).set('Authorization', `Bearer ${reviewerToken}`),
+        request(app).post(`/versions/${versionId}/approve`).set('Cookie', `auth_token=${reviewerToken}`),
+        request(app).post(`/versions/${versionId}/approve`).set('Cookie', `auth_token=${reviewerToken}`),
       ])
       assertNoServerErrors([resA, resB])
 
@@ -171,11 +171,11 @@ describe('concurrency races', () => {
       const [uploadResult, changesResult] = await Promise.allSettled([
         request(app)
           .post(`/documents/${documentId}/versions`)
-          .set('Authorization', `Bearer ${authorToken}`)
+          .set('Cookie', `auth_token=${authorToken}`)
           .attach('file', Buffer.from('v2 content'), 'v2.txt'),
         request(app)
           .post(`/versions/${versionId}/request-changes`)
-          .set('Authorization', `Bearer ${reviewerToken}`)
+          .set('Cookie', `auth_token=${reviewerToken}`)
           .send({ comment: 'race comment' }),
       ])
       assertNoServerErrors([uploadResult, changesResult])
@@ -204,12 +204,12 @@ describe('concurrency races', () => {
 
     const first = await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(first.status).toBe(204)
 
     const second = await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(second.status).toBe(409)
 
     const approvalCount = await prisma.approval.count({ where: { versionId } })
@@ -221,7 +221,7 @@ describe('concurrency races', () => {
 
     const res = await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${otherReviewerToken}`)
+      .set('Cookie', `auth_token=${otherReviewerToken}`)
     expect(res.status).toBe(404)
 
     const approvalCount = await prisma.approval.count({ where: { versionId } })

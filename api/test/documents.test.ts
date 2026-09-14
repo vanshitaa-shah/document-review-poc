@@ -57,7 +57,7 @@ describe('upload & submit', () => {
   it('rejects an upload with no file', async () => {
     const res = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'No file')
       .field('categoryId', categoryId)
 
@@ -67,7 +67,7 @@ describe('upload & submit', () => {
   it('rejects an unsupported file type', async () => {
     const res = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Bad type')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('binary'), 'malware.exe')
@@ -78,7 +78,7 @@ describe('upload & submit', () => {
   it('rejects a file over the 10MB limit', async () => {
     const res = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Too big')
       .field('categoryId', categoryId)
       .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), 'huge.txt')
@@ -89,7 +89,7 @@ describe('upload & submit', () => {
   it('rejects uploading into a category the author does not belong to', async () => {
     const res = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Wrong category')
       .field('categoryId', otherCategoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -100,7 +100,7 @@ describe('upload & submit', () => {
   it('rejects submitting a document twice', async () => {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Double submit')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -108,19 +108,19 @@ describe('upload & submit', () => {
 
     const first = await request(app)
       .post(`/documents/${create.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(first.status).toBe(204)
 
     const second = await request(app)
       .post(`/documents/${create.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(second.status).toBe(409)
   })
 
   it('hides a draft from other category members but shows it to the author', async () => {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Still a draft')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -128,24 +128,24 @@ describe('upload & submit', () => {
 
     const listAsReviewer = await request(app)
       .get('/documents')
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(listAsReviewer.body.items.map((d: { id: string }) => d.id)).not.toContain(create.body.id)
 
     const listAsAuthor = await request(app)
       .get('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(listAsAuthor.body.items.map((d: { id: string }) => d.id)).toContain(create.body.id)
 
     const directAsReviewer = await request(app)
       .get(`/documents/${create.body.id}`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(directAsReviewer.status).toBe(404)
   })
 
   it('shows a submitted document to reviewers in the category, with its current version', async () => {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Submitted doc')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -153,16 +153,16 @@ describe('upload & submit', () => {
 
     await request(app)
       .post(`/documents/${create.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     const listAsReviewer = await request(app)
       .get('/documents')
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(listAsReviewer.body.items.map((d: { id: string }) => d.id)).toContain(create.body.id)
 
     const directAsReviewer = await request(app)
       .get(`/documents/${create.body.id}`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(directAsReviewer.status).toBe(200)
     expect(directAsReviewer.body.currentVersion.status).toBe('SUBMITTED')
   })
@@ -177,7 +177,7 @@ describe('upload & submit', () => {
 
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', "Someone else's doc")
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -185,21 +185,21 @@ describe('upload & submit', () => {
 
     await request(app)
       .post(`/documents/${create.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     const listAsOtherAuthor = await request(app)
       .get('/documents')
-      .set('Authorization', `Bearer ${otherAuthorToken}`)
+      .set('Cookie', `auth_token=${otherAuthorToken}`)
     expect(listAsOtherAuthor.body.items.map((d: { id: string }) => d.id)).not.toContain(create.body.id)
 
     const directAsOtherAuthor = await request(app)
       .get(`/documents/${create.body.id}`)
-      .set('Authorization', `Bearer ${otherAuthorToken}`)
+      .set('Cookie', `auth_token=${otherAuthorToken}`)
     expect(directAsOtherAuthor.status).toBe(404)
 
     const listAsOwnAuthor = await request(app)
       .get('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(listAsOwnAuthor.body.items.map((d: { id: string }) => d.id)).toContain(create.body.id)
 
     await prisma.categoryMembership.deleteMany({ where: { userId: otherAuthor.id } })
@@ -209,7 +209,7 @@ describe('upload & submit', () => {
   it('sorts by most recently changed, not most recently created', async () => {
     const older = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Older but just touched')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -217,7 +217,7 @@ describe('upload & submit', () => {
 
     const newer = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Newer but untouched')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -227,9 +227,9 @@ describe('upload & submit', () => {
     // the newer, untouched one.
     await request(app)
       .post(`/documents/${older.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
-    const list = await request(app).get('/documents').set('Authorization', `Bearer ${authorToken}`)
+    const list = await request(app).get('/documents').set('Cookie', `auth_token=${authorToken}`)
     const ids = list.body.items.map((d: { id: string }) => d.id)
     expect(ids.indexOf(older.body.id)).toBeLessThan(ids.indexOf(newer.body.id))
   })
@@ -237,7 +237,7 @@ describe('upload & submit', () => {
   it('filters the list by status and category', async () => {
     const draft = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Filter test draft')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
@@ -245,37 +245,37 @@ describe('upload & submit', () => {
 
     const submitted = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Filter test submitted')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('content'), 'v1.txt')
     documentIds.push(submitted.body.id)
     await request(app)
       .post(`/documents/${submitted.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     const draftOnly = await request(app)
       .get('/documents?status=DRAFT')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     const draftIds = draftOnly.body.items.map((d: { id: string }) => d.id)
     expect(draftIds).toContain(draft.body.id)
     expect(draftIds).not.toContain(submitted.body.id)
 
     const submittedOnly = await request(app)
       .get('/documents?status=SUBMITTED')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     const submittedIds = submittedOnly.body.items.map((d: { id: string }) => d.id)
     expect(submittedIds).toContain(submitted.body.id)
     expect(submittedIds).not.toContain(draft.body.id)
 
     const outsideCategory = await request(app)
       .get(`/documents?categoryId=${otherCategoryId}`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(outsideCategory.body.items).toHaveLength(0)
 
     const withinCategory = await request(app)
       .get(`/documents?categoryId=${categoryId}`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     const withinIds = withinCategory.body.items.map((d: { id: string }) => d.id)
     expect(withinIds).toContain(draft.body.id)
     expect(withinIds).toContain(submitted.body.id)

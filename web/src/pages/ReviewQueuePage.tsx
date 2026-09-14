@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../lib/apiClient'
-import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Avatar } from '../components/Avatar'
@@ -35,7 +34,6 @@ interface CategoryOption {
 const ALL_CATEGORIES = ''
 
 export function ReviewQueuePage() {
-  const { token } = useAuth()
   const [pages, setPages] = useState<QueueItem[][]>([])
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES)
@@ -52,7 +50,7 @@ export function ReviewQueuePage() {
       if (after) params.set('cursor', after)
       if (categoryFilter) params.set('categoryId', categoryFilter)
 
-      const res = await api.get<QueueResponse>(`/reviews/queue?${params.toString()}`, token)
+      const res = await api.get<QueueResponse>(`/reviews/queue?${params.toString()}`)
       setPages((prev) => (after ? [...prev, res.items] : [res.items]))
       setCursor(res.nextCursor)
       setHasMore(res.nextCursor !== null)
@@ -65,7 +63,7 @@ export function ReviewQueuePage() {
 
   useEffect(() => {
     void api
-      .get<{ items: CategoryOption[] }>('/categories', token)
+      .get<{ items: CategoryOption[] }>('/categories')
       .then((res) => setCategories(res.items))
       .catch(() => setCategories([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps

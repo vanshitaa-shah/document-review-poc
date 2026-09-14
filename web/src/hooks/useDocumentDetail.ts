@@ -43,7 +43,7 @@ export interface VersionContent {
 // All the data-fetching and mutation logic for the Overview tab, kept out of
 // the page component so DocumentDetailPage stays pure composition/JSX.
 export function useDocumentDetail(id: string | undefined) {
-  const { token, user } = useAuth()
+  const { user } = useAuth()
 
   const [document, setDocument] = useState<DocumentDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +68,7 @@ export function useDocumentDetail(id: string | undefined) {
       if (!id) return
       if (!opts.silent) setError(null)
       try {
-        const doc = await api.get<DocumentDetail>(`/documents/${id}`, token)
+        const doc = await api.get<DocumentDetail>(`/documents/${id}`)
         setDocument(doc)
       } catch (err) {
         if (!opts.silent) setError(err)
@@ -76,7 +76,7 @@ export function useDocumentDetail(id: string | undefined) {
         setLoading(false)
       }
     },
-    [id, token],
+    [id],
   )
 
   useEffect(() => {
@@ -89,8 +89,8 @@ export function useDocumentDetail(id: string | undefined) {
     if (!currentVersionId) return
     try {
       const [contentRes, commentsRes] = await Promise.all([
-        api.get<VersionContent>(`/versions/${currentVersionId}/content`, token),
-        api.get<{ items: StoredComment[] }>(`/versions/${currentVersionId}/comments`, token),
+        api.get<VersionContent>(`/versions/${currentVersionId}/content`),
+        api.get<{ items: StoredComment[] }>(`/versions/${currentVersionId}/comments`),
       ])
       setVersionContent(contentRes)
       setInlineComments(commentsRes.items)
@@ -99,7 +99,7 @@ export function useDocumentDetail(id: string | undefined) {
       setVersionContent(null)
       setInlineComments([])
     }
-  }, [currentVersionId, token])
+  }, [currentVersionId])
 
   useEffect(() => {
     void loadComments()
@@ -127,7 +127,7 @@ export function useDocumentDetail(id: string | undefined) {
   }
 
   async function handleSubmit() {
-    await runAction(() => api.post(`/documents/${id}/submit`, undefined, token))
+    await runAction(() => api.post(`/documents/${id}/submit`))
   }
 
   async function handleUploadRevision(e: FormEvent) {
@@ -136,21 +136,21 @@ export function useDocumentDetail(id: string | undefined) {
     await runAction(async () => {
       const formData = new FormData()
       formData.append('file', revisionFile)
-      await api.postForm(`/documents/${id}/versions`, formData, token)
+      await api.postForm(`/documents/${id}/versions`, formData)
       setRevisionFile(null)
     })
   }
 
   async function handleApprove() {
     if (!current) return
-    await runAction(() => api.post(`/versions/${current.id}/approve`, undefined, token))
+    await runAction(() => api.post(`/versions/${current.id}/approve`))
   }
 
   async function handleRequestChanges(e: FormEvent) {
     e.preventDefault()
     if (!current || !comment.trim()) return
     await runAction(async () => {
-      await api.post(`/versions/${current.id}/request-changes`, { comment }, token)
+      await api.post(`/versions/${current.id}/request-changes`, { comment })
       setComment('')
     })
   }
@@ -159,7 +159,7 @@ export function useDocumentDetail(id: string | undefined) {
     if (!current) return
     setCommentBusy(true)
     try {
-      await api.post(`/versions/${current.id}/comments`, payload, token)
+      await api.post(`/versions/${current.id}/comments`, payload)
       await loadComments()
     } finally {
       setCommentBusy(false)
@@ -168,9 +168,7 @@ export function useDocumentDetail(id: string | undefined) {
 
   async function handleDownload(versionId: string, fileName: string) {
     try {
-      const res = await fetch(`/versions/${versionId}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
+      const res = await fetch(`/versions/${versionId}/download`, { credentials: 'include' })
       if (!res.ok) {
         const payload = await res.json().catch(() => ({ error: 'Download failed' }))
         throw new ApiError(payload.error ?? 'Download failed', res.status)

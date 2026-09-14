@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../lib/apiClient'
-import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { FileInputHint } from '../components/FileInputHint'
@@ -14,7 +13,6 @@ interface Category {
 }
 
 export function NewDocumentPage() {
-  const { token } = useAuth()
   const navigate = useNavigate()
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -26,13 +24,13 @@ export function NewDocumentPage() {
 
   useEffect(() => {
     void api
-      .get<{ items: Category[] }>('/categories', token)
+      .get<{ items: Category[] }>('/categories')
       .then((res) => {
         setCategories(res.items)
         setCategoryId((current) => current || (res.items[0]?.id ?? ''))
       })
       .catch(setError)
-  }, [token])
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -47,7 +45,7 @@ export function NewDocumentPage() {
       formData.append('title', title)
       formData.append('categoryId', categoryId)
       formData.append('file', file)
-      const document = await api.postForm<{ id: string }>('/documents', formData, token)
+      const document = await api.postForm<{ id: string }>('/documents', formData)
       navigate(ROUTES.documentDetail(document.id))
     } catch (err) {
       setError(err)

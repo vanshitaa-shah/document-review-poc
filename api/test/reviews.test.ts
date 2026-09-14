@@ -69,7 +69,7 @@ describe('review, approval, locking', () => {
   async function createSubmittedDocument(title: string) {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', title)
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('v1 content'), 'v1.txt')
@@ -77,7 +77,7 @@ describe('review, approval, locking', () => {
 
     await request(app)
       .post(`/documents/${create.body.id}/submit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     return create.body as { id: string; currentVersion: { id: string } }
   }
@@ -87,13 +87,13 @@ describe('review, approval, locking', () => {
 
     const draft = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Still drafting')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('draft'), 'draft.txt')
     documentIds.push(draft.body.id)
 
-    const res = await request(app).get('/reviews/queue').set('Authorization', `Bearer ${reviewerToken}`)
+    const res = await request(app).get('/reviews/queue').set('Cookie', `auth_token=${reviewerToken}`)
 
     expect(res.status).toBe(200)
     const ids = res.body.items.map((v: { id: string }) => v.id)
@@ -102,7 +102,7 @@ describe('review, approval, locking', () => {
 
     const otherCategoryRes = await request(app)
       .get('/reviews/queue')
-      .set('Authorization', `Bearer ${otherReviewerToken}`)
+      .set('Cookie', `auth_token=${otherReviewerToken}`)
     expect(otherCategoryRes.body.items.map((v: { id: string }) => v.id)).not.toContain(
       submitted.currentVersion.id,
     )
@@ -114,7 +114,7 @@ describe('review, approval, locking', () => {
 
     const res = await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
     expect(res.status).toBe(204)
 
     const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })
@@ -136,12 +136,12 @@ describe('review, approval, locking', () => {
 
     await request(app)
       .post(`/documents/${document.id}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     const res = await request(app)
       .post(`/versions/${staleVersionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
 
     expect(res.status).toBe(409)
     expect(res.body.error).toContain('v2')
@@ -155,7 +155,7 @@ describe('review, approval, locking', () => {
 
     const res = await request(app)
       .post(`/versions/${document.currentVersion.id}/request-changes`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
       .send({})
 
     expect(res.status).toBe(400)
@@ -167,7 +167,7 @@ describe('review, approval, locking', () => {
 
     const res = await request(app)
       .post(`/versions/${versionId}/request-changes`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
       .send({ comment: 'Please fix the typo on page 2' })
 
     expect(res.status).toBe(204)
@@ -186,11 +186,11 @@ describe('review, approval, locking', () => {
 
     await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
 
     const res = await request(app)
       .post(`/documents/${document.id}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     expect(res.status).toBe(409)
@@ -202,11 +202,11 @@ describe('review, approval, locking', () => {
 
     await request(app)
       .post(`/versions/${versionId}/approve`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
 
     const res = await request(app)
       .get(`/versions/${versionId}/download`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     expect(res.status).toBe(200)
     expect(res.text).toBe('v1 content')
@@ -215,7 +215,7 @@ describe('review, approval, locking', () => {
 
     const refused = await request(app)
       .get(`/versions/${versionId}/download`)
-      .set('Authorization', `Bearer ${otherReviewerToken}`)
+      .set('Cookie', `auth_token=${otherReviewerToken}`)
     expect(refused.status).toBe(404)
   })
 })

@@ -7,7 +7,6 @@ import { LogoMark } from '../components/Icons'
 import { btnPrimary, input, label } from '../lib/ui'
 
 interface LoginResponse {
-  token: string
   user: AuthUser
 }
 
@@ -26,8 +25,8 @@ export function LoginPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const { token, user } = await api.post<LoginResponse>('/auth/login', { email, password }, null)
-      login(token, user)
+      const { user } = await api.post<LoginResponse>('/auth/login', { email, password })
+      login(user)
       const from = (location.state as { from?: Location })?.from?.pathname ?? '/documents'
       navigate(from, { replace: true })
     } catch (err) {

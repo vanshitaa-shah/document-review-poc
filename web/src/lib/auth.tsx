@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { setUnauthorizedHandler } from './apiClient'
+import { api, setUnauthorizedHandler } from './apiClient'
 import type { Role } from './constants'
 
 export interface AuthUser {
@@ -18,15 +18,18 @@ export interface AuthUser {
 }
 
 interface AuthState {
-  token: string | null
   user: AuthUser | null
 }
 
 interface AuthContextValue extends AuthState {
-  login: (token: string, user: AuthUser) => void
-  logout: () => void
+  login: (user: AuthUser) => void
+  logout: () => Promise<void>
 }
 
+// Auth itself lives in an httpOnly cookie the browser sends automatically —
+// this is only a UI-layer "am I logged in" signal, never the security
+// boundary. A stale/expired cookie still gets caught server-side and any API
+// call 401s, which the same logout path clears client state for.
 const STORAGE_KEY = 'document-review-auth'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -35,31 +38,35 @@ function readStoredAuth(): AuthState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return { token: null, user: null }
+      return { user: null }
     }
     return JSON.parse(raw) as AuthState
   } catch {
-    return { token: null, user: null }
+    return { user: null }
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => readStoredAuth())
 
-  const login = useCallback((token: string, user: AuthUser) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }))
-    setState({ token, user })
+  const login = useCallback((user: AuthUser) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }))
+    setState({ user })
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY)
-    setState({ token: null, user: null })
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout')
+    } finally {
+      localStorage.removeItem(STORAGE_KEY)
+      setState({ user: null })
+    }
   }, [])
 
-  // Any authenticated request that comes back 401 (expired/invalid token)
+  // Any authenticated request that comes back 401 (expired/invalid cookie)
   // drops the session the same way an explicit logout does.
   useEffect(() => {
-    setUnauthorizedHandler(logout)
+    setUnauthorizedHandler(() => void logout())
     return () => setUnauthorizedHandler(null)
   }, [logout])
 
@@ -77,12 +84,12 @@ export function useAuth(): AuthContextValue {
 }
 
 // Route guard: redirects to /login (remembering where the user was headed)
-// when there is no token.
+// when there is no signed-in user.
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { token } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
 
-  if (!token) {
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 

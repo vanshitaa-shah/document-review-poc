@@ -55,7 +55,7 @@ describe('versioning core', () => {
   async function createDocument(title: string) {
     const res = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', title)
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('v1 content'), 'v1.txt')
@@ -75,7 +75,7 @@ describe('versioning core', () => {
 
     const res = await request(app)
       .post(`/documents/${document.id}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     expect(res.status).toBe(201)
@@ -114,12 +114,12 @@ describe('versioning core', () => {
 
     await request(app)
       .post(`/documents/${document.id}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     const res = await request(app)
       .get(`/documents/${document.id}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     expect(res.status).toBe(200)
     expect(res.body.items.map((v: { versionNumber: number }) => v.versionNumber)).toEqual([2, 1])
@@ -136,11 +136,11 @@ describe('versioning core', () => {
     const [resA, resB] = await Promise.all([
       request(app)
         .post(`/documents/${document.id}/versions`)
-        .set('Authorization', `Bearer ${authorToken}`)
+        .set('Cookie', `auth_token=${authorToken}`)
         .attach('file', Buffer.from('race a'), 'race-a.txt'),
       request(app)
         .post(`/documents/${document.id}/versions`)
-        .set('Authorization', `Bearer ${authorToken}`)
+        .set('Cookie', `auth_token=${authorToken}`)
         .attach('file', Buffer.from('race b'), 'race-b.txt'),
     ])
 

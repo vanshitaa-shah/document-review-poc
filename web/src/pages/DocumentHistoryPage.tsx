@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { api, ApiError } from '../lib/apiClient'
-import { useAuth } from '../lib/auth'
 import { AppShell } from '../components/AppShell'
 import { DocumentHeader } from '../components/DocumentHeader'
 import { ErrorMessage } from '../components/ErrorMessage'
@@ -32,7 +31,6 @@ interface DocumentDetail {
 // lives here; VersionHistoryTable and AuditTrailList are pure presentation.
 export function DocumentHistoryPage() {
   const { id } = useParams<{ id: string }>()
-  const { token } = useAuth()
 
   const [document, setDocument] = useState<DocumentDetail | null>(null)
   const [versions, setVersions] = useState<VersionRow[]>([])
@@ -47,9 +45,9 @@ export function DocumentHistoryPage() {
     setError(null)
     try {
       const [doc, versionsRes, auditRes] = await Promise.all([
-        api.get<DocumentDetail>(`/documents/${id}`, token),
-        api.get<{ items: VersionRow[] }>(`/documents/${id}/versions`, token),
-        api.get<{ items: AuditRow[] }>(`/documents/${id}/audit`, token),
+        api.get<DocumentDetail>(`/documents/${id}`),
+        api.get<{ items: VersionRow[] }>(`/documents/${id}/versions`),
+        api.get<{ items: AuditRow[] }>(`/documents/${id}/audit`),
       ])
       setDocument(doc)
       setVersions(versionsRes.items)
@@ -59,7 +57,7 @@ export function DocumentHistoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [id, token])
+  }, [id])
 
   useEffect(() => {
     void load()
@@ -67,9 +65,7 @@ export function DocumentHistoryPage() {
 
   async function handleDownload(versionId: string, fileName: string) {
     try {
-      const res = await fetch(`/versions/${versionId}/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
+      const res = await fetch(`/versions/${versionId}/download`, { credentials: 'include' })
       if (!res.ok) {
         const payload = await res.json().catch(() => ({ error: 'Download failed' }))
         throw new ApiError(payload.error ?? 'Download failed', res.status)
@@ -125,7 +121,6 @@ export function DocumentHistoryPage() {
           previousVersionId={previousVersion.id}
           currentVersionNumber={compareVersion.versionNumber}
           previousVersionNumber={previousVersion.versionNumber}
-          token={token}
           onClose={() => setCompareVersion(null)}
         />
       )}

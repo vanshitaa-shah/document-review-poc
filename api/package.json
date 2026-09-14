@@ -28,6 +28,7 @@
   "dependencies": {
     "@prisma/client": "^5.20.0",
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "express": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.12.3",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^2.2.0",

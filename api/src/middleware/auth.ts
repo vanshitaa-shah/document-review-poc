@@ -1,11 +1,11 @@
 import type { NextFunction, Request, Response } from 'express'
 import type { UserRole } from '@prisma/client'
+import { AUTH_COOKIE_NAME } from '../lib/authCookie.js'
 import { UnauthorizedError, ForbiddenError } from '../lib/errors.js'
 import { verifyAuthToken } from '../lib/jwt.js'
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
-  const header = req.headers.authorization
-  const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null
+  const token: string | undefined = req.cookies?.[AUTH_COOKIE_NAME]
 
   if (!token) {
     throw new UnauthorizedError()

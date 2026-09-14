@@ -1,6 +1,8 @@
-// Thin typed fetch wrapper. Attaches the bearer token, parses the server's
-// { error, details? } body on failure, and throws it as an ApiError so callers
-// (and the shared error display) can show the server's message verbatim.
+// Thin typed fetch wrapper. Auth is an httpOnly cookie the browser attaches
+// on its own (credentials: 'include') — the client never touches the token.
+// Parses the server's { error, details? } body on failure and throws it as
+// an ApiError so callers (and the shared error display) can show the
+// server's message verbatim.
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -25,7 +27,6 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   formData?: FormData
-  token?: string | null
   signal?: AbortSignal
 }
 
@@ -35,21 +36,19 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`
-  }
 
   const res = await fetch(path, {
     method: options.method ?? 'GET',
     headers,
+    credentials: 'include',
     ...(options.formData ? { body: options.formData } : {}),
     ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
     ...(options.signal && { signal: options.signal }),
   })
 
-  // Only an authenticated call going stale should redirect to login — a login
-  // attempt itself rejecting with 401 is just "wrong credentials".
-  if (res.status === 401 && options.token) {
+  // Only an already-authenticated call going stale should redirect to login —
+  // the login request itself rejecting with 401 is just "wrong credentials".
+  if (res.status === 401 && path !== '/auth/login') {
     onUnauthorized?.()
   }
 
@@ -66,10 +65,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const api = {
-  get: <T>(path: string, token: string | null, signal?: AbortSignal) =>
-    request<T>(path, { method: 'GET', token, ...(signal && { signal }) }),
-  post: <T>(path: string, body: unknown, token: string | null) =>
-    request<T>(path, { method: 'POST', body, token }),
-  postForm: <T>(path: string, formData: FormData, token: string | null) =>
-    request<T>(path, { method: 'POST', formData, token }),
+  get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: 'GET', ...(signal && { signal }) }),
+  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  postForm: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', formData }),
 }

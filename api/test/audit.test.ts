@@ -69,7 +69,7 @@ describe('audit trail', () => {
   it('records one row per tracked action, newest first, and hides it from non-members', async () => {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Audited document')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('v1 content'), 'v1.txt')
@@ -77,21 +77,21 @@ describe('audit trail', () => {
     const v1VersionId = create.body.currentVersion.id as string
     documentIds.push(documentId)
 
-    await request(app).post(`/documents/${documentId}/submit`).set('Authorization', `Bearer ${authorToken}`)
+    await request(app).post(`/documents/${documentId}/submit`).set('Cookie', `auth_token=${authorToken}`)
 
     await request(app)
       .post(`/versions/${v1VersionId}/request-changes`)
-      .set('Authorization', `Bearer ${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
       .send({ comment: 'fix the intro' })
 
     await request(app)
       .post(`/documents/${documentId}/versions`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     const res = await request(app)
       .get(`/documents/${documentId}/audit`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
 
     expect(res.status).toBe(200)
     const actions = res.body.items.map((e: { action: string }) => e.action)
@@ -108,37 +108,37 @@ describe('audit trail', () => {
 
     const refused = await request(app)
       .get(`/documents/${documentId}/audit`)
-      .set('Authorization', `Bearer ${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsiderToken}`)
     expect(refused.status).toBe(404)
   })
 
   it('paginates the audit trail by cursor', async () => {
     const create = await request(app)
       .post('/documents')
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
       .field('title', 'Long audit trail')
       .field('categoryId', categoryId)
       .attach('file', Buffer.from('v1 content'), 'v1.txt')
     const documentId = create.body.id as string
     documentIds.push(documentId)
 
-    await request(app).post(`/documents/${documentId}/submit`).set('Authorization', `Bearer ${authorToken}`)
+    await request(app).post(`/documents/${documentId}/submit`).set('Cookie', `auth_token=${authorToken}`)
     for (let i = 0; i < 3; i++) {
       await request(app)
         .post(`/documents/${documentId}/versions`)
-        .set('Authorization', `Bearer ${authorToken}`)
+        .set('Cookie', `auth_token=${authorToken}`)
         .attach('file', Buffer.from(`v${i + 2} content`), `v${i + 2}.txt`)
     }
 
     const firstPage = await request(app)
       .get(`/documents/${documentId}/audit?limit=2`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(firstPage.body.items).toHaveLength(2)
     expect(firstPage.body.nextCursor).not.toBeNull()
 
     const secondPage = await request(app)
       .get(`/documents/${documentId}/audit?limit=2&cursor=${firstPage.body.nextCursor}`)
-      .set('Authorization', `Bearer ${authorToken}`)
+      .set('Cookie', `auth_token=${authorToken}`)
     expect(secondPage.body.items).toHaveLength(2)
 
     const firstIds = firstPage.body.items.map((e: { id: string }) => e.id)

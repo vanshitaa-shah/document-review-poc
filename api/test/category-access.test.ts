@@ -96,7 +96,7 @@ describe('category isolation', () => {
   it('lets a category member load the document', async () => {
     const res = await request(app)
       .get(`/documents/${documentId}`)
-      .set('Authorization', `Bearer ${memberToken}`)
+      .set('Cookie', `auth_token=${memberToken}`)
 
     expect(res.status).toBe(200)
     expect(res.body.id).toBe(documentId)
@@ -105,7 +105,7 @@ describe('category isolation', () => {
   it('never loads the row for a non-member, even by direct id', async () => {
     const res = await request(app)
       .get(`/documents/${documentId}`)
-      .set('Authorization', `Bearer ${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsiderToken}`)
 
     expect(res.status).toBe(404)
   })

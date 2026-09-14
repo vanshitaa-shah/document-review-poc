@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </span>
                 </span>
                 <button
-                  onClick={logout}
+                  onClick={() => void logout()}
                   className="rounded-md border border-[#3d444d] px-2.5 py-1 text-sm text-[#d0d7de] transition-colors hover:border-[#6e7681] hover:bg-white/5 hover:text-white"
                 >
                   Sign out

@@ -37,7 +37,7 @@ const ALL_STATUSES = ''
 const ALL_CATEGORIES = ''
 
 export function DocumentListPage() {
-  const { token, user } = useAuth()
+  const { user } = useAuth()
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
@@ -57,7 +57,7 @@ export function DocumentListPage() {
       if (statusFilter) params.set('status', statusFilter)
       if (categoryFilter) params.set('categoryId', categoryFilter)
 
-      const res = await api.get<DocumentListResponse>(`/documents?${params.toString()}`, token)
+      const res = await api.get<DocumentListResponse>(`/documents?${params.toString()}`)
       setDocuments(res.items)
       setNextCursor(res.nextCursor)
     } catch (err) {
@@ -69,7 +69,7 @@ export function DocumentListPage() {
 
   useEffect(() => {
     void api
-      .get<{ items: CategoryOption[] }>('/categories', token)
+      .get<{ items: CategoryOption[] }>('/categories')
       .then((res) => setCategories(res.items))
       .catch(() => setCategories([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
