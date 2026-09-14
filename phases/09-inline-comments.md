@@ -46,7 +46,9 @@ the highlight against that exact text. Medium-style.
 - `POST /versions/:id/comments` — body + anchor (anchor is required, not optional)
 - `GET /versions/:id/comments` — all comments for that version
 - Category access enforced on both
-- Reject comments on an APPROVED version (it's locked)
+- Reject comments on an APPROVED version (it's locked) or a SUPERSEDED one
+  (it's no longer the version being reviewed) — existing comments on a
+  superseded version stay visible in history, only new ones are blocked
 
 ## Done when
 - Selecting text on a txt, md or docx document and commenting works

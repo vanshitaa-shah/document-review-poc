@@ -281,6 +281,26 @@ describe('inline comments', () => {
     expect(count).toBe(0)
   })
 
+  it('rejects commenting on a superseded version and creates nothing', async () => {
+    const doc = await createDocument('Superseded lock', 'v1.txt', 'content')
+    const v1Id = doc.currentVersion.id
+    await request(app).post(`/documents/${doc.id}/submit`).set('Authorization', `Bearer ${authorToken}`)
+
+    await request(app)
+      .post(`/documents/${doc.id}/versions`)
+      .set('Authorization', `Bearer ${authorToken}`)
+      .attach('file', Buffer.from('v2 content'), 'v2.txt')
+
+    const res = await request(app)
+      .post(`/versions/${v1Id}/comments`)
+      .set('Authorization', `Bearer ${reviewerToken}`)
+      .send({ body: 'too late', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
+    expect(res.status).toBe(409)
+
+    const count = await prisma.comment.count({ where: { versionId: v1Id } })
+    expect(count).toBe(0)
+  })
+
   it('refuses content and comments to a reviewer outside the category — 404', async () => {
     const doc = await createDocument('Isolated doc', 'v1.txt', 'content')
     await request(app).post(`/documents/${doc.id}/submit`).set('Authorization', `Bearer ${authorToken}`)
