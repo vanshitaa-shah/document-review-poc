@@ -16,10 +16,14 @@ RUN npm install
 
 COPY api/ .
 RUN npx prisma generate
+RUN npm run build
 
 # The UI build, served same-origin by Express — see lib/staticUi.ts.
 COPY --from=web-build /web/dist ./public
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run dev"]
+# Render (and most hosts) inject $PORT; src/index.ts honors it.
+# seed-if-empty is a no-op once real data exists, so this CMD is the same in
+# dev and production — a fresh clone/volume boots seeded, a live DB never is.
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed-if-empty.ts && npm start"]
