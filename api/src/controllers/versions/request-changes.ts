@@ -9,6 +9,10 @@ import { NotFoundError } from '../../lib/errors.js'
 import { requestChangesBodySchema, versionParamsSchema } from '../../schemas/reviews.schema.js'
 
 // Same stale-version guard as approve; the required comment lives on the Review row.
+// Unlike approve, this accepts both SUBMITTED and CHANGES_REQUESTED — any
+// reviewer with category access can request changes again (a second
+// reviewer, or a follow-up reason) as long as the version hasn't been
+// approved or superseded yet.
 export async function requestChanges(req: Request, res: Response) {
   const { versionId } = req.params as z.infer<typeof versionParamsSchema>
   const { comment } = req.body as z.infer<typeof requestChangesBodySchema>
@@ -23,7 +27,7 @@ export async function requestChanges(req: Request, res: Response) {
 
   await prisma.$transaction(async (tx) => {
     const { count } = await tx.documentVersion.updateMany({
-      where: { id: versionId, isCurrent: true, status: 'SUBMITTED' },
+      where: { id: versionId, isCurrent: true, status: { in: ['SUBMITTED', 'CHANGES_REQUESTED'] } },
       data: { status: 'CHANGES_REQUESTED' },
     })
     if (count === 0) {

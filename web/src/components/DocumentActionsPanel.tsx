@@ -106,22 +106,23 @@ export function DocumentActionsPanel({
         </form>
       )}
 
-      {isReviewer && current?.status === VersionStatus.SUBMITTED && (
-        <form onSubmit={onRequestChanges} className="mt-6 border-t border-[#d8dee4] pt-4">
-          <h2 className={sectionHeading}>Request changes</h2>
-          <textarea
-            required
-            value={comment}
-            onChange={(e) => onCommentChange(e.target.value)}
-            placeholder="Explain what needs to change…"
-            rows={3}
-            className={`mt-2 ${textarea}`}
-          />
-          <button type="submit" disabled={busy || !comment.trim()} className={`mt-2 ${btnWarning}`}>
-            Request changes
-          </button>
-        </form>
-      )}
+      {isReviewer &&
+        (current?.status === VersionStatus.SUBMITTED || current?.status === VersionStatus.CHANGES_REQUESTED) && (
+          <form onSubmit={onRequestChanges} className="mt-6 border-t border-[#d8dee4] pt-4">
+            <h2 className={sectionHeading}>Request changes</h2>
+            <textarea
+              required
+              value={comment}
+              onChange={(e) => onCommentChange(e.target.value)}
+              placeholder="Explain what needs to change…"
+              rows={3}
+              className={`mt-2 ${textarea}`}
+            />
+            <button type="submit" disabled={busy || !comment.trim()} className={`mt-2 ${btnWarning}`}>
+              Request changes
+            </button>
+          </form>
+        )}
     </div>
   )
 }

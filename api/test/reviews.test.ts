@@ -180,6 +180,29 @@ describe('review, approval, locking', () => {
     expect(review?.status).toBe('CHANGES_REQUESTED')
   })
 
+  it('allows a second request-changes once the version is already CHANGES_REQUESTED', async () => {
+    const document = await createSubmittedDocument('Needs changes twice')
+    const versionId = document.currentVersion.id
+
+    await request(app)
+      .post(`/versions/${versionId}/request-changes`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
+      .send({ comment: 'First round of feedback' })
+
+    const second = await request(app)
+      .post(`/versions/${versionId}/request-changes`)
+      .set('Cookie', `auth_token=${reviewerToken}`)
+      .send({ comment: 'Second round of feedback' })
+
+    expect(second.status).toBe(204)
+
+    const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })
+    expect(version.status).toBe('CHANGES_REQUESTED')
+
+    const reviews = await prisma.review.findMany({ where: { versionId }, orderBy: { createdAt: 'asc' } })
+    expect(reviews.map((r) => r.comment)).toEqual(['First round of feedback', 'Second round of feedback'])
+  })
+
   it('locks an approved version — a new revision attempt returns 409', async () => {
     const document = await createSubmittedDocument('Locked after approval')
     const versionId = document.currentVersion.id
