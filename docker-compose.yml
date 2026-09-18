@@ -25,14 +25,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       PORT: ${API_PORT:-3000}
       JWT_SECRET: ${JWT_SECRET}
-      UPLOAD_DIR: /app/uploads
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-document-review-api}
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-http://openobserve:5080/api/default/v1/logs}
       OTEL_EXPORTER_OTLP_LOGS_HEADERS: ${OTEL_EXPORTER_OTLP_LOGS_HEADERS}
     ports:
       - "${API_PORT:-3000}:3000"
-    volumes:
-      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,5 +52,4 @@ services:
 
 volumes:
   postgres_data:
-  uploads_data:
   openobserve_data:

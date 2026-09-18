@@ -88,7 +88,7 @@ model DocumentVersion {
   id            String        @id @default(uuid())
   documentId    String
   versionNumber Int
-  filePath      String
+  filePath      String // R2 object key, not a local path — see lib/storage.ts
   fileName      String
   mimeType      String
   size          Int

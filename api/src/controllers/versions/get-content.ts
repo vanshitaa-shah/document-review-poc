@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
@@ -8,6 +7,7 @@ import { getDocxHtml } from '../../lib/docxConvert.js'
 import { NotFoundError } from '../../lib/errors.js'
 import { sanitizeVersionHtml } from '../../lib/sanitizeHtml.js'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
+import { getObjectBuffer } from '../../lib/storage.js'
 
 // Renderable content for the inline-comment view: txt/md come back as plain text
 // (the client renders md with react-markdown), docx is converted to HTML
@@ -31,13 +31,13 @@ export async function getVersionContent(req: Request, res: Response) {
   const ext = path.extname(version.fileName).toLowerCase()
 
   if (ext === '.txt') {
-    const content = await readFile(version.filePath, 'utf8')
+    const content = (await getObjectBuffer(version.filePath)).toString('utf8')
     res.json({ format: 'text', content })
     return
   }
 
   if (ext === '.md') {
-    const content = await readFile(version.filePath, 'utf8')
+    const content = (await getObjectBuffer(version.filePath)).toString('utf8')
     res.json({ format: 'markdown', content })
     return
   }
@@ -49,7 +49,7 @@ export async function getVersionContent(req: Request, res: Response) {
   }
 
   if (ext === '.html') {
-    const content = await readFile(version.filePath, 'utf8')
+    const content = (await getObjectBuffer(version.filePath)).toString('utf8')
     res.json({ format: 'html', content: sanitizeVersionHtml(content) })
     return
   }

@@ -9,9 +9,9 @@ services:
     dockerfilePath: ./api/Dockerfile
     dockerContext: .
     # Free plan for a $0 demo. Render's free web tier SLEEPS after ~15min idle
-    # and its filesystem is ephemeral — uploaded files won't survive a restart
-    # or redeploy. For real use, switch to `plan: starter` and add a persistent
-    # disk mounted at /app/uploads.
+    # and its own filesystem is ephemeral on every plan tier — but uploaded
+    # files live in Cloudinary (see lib/storage.ts), not on this container's
+    # disk, so a restart/redeploy doesn't lose them. No persistent disk needed.
     plan: free
     envVars:
       - key: NODE_ENV
@@ -24,8 +24,16 @@ services:
         fromDatabase:
           name: document-review-db
           property: connectionString
-      - key: UPLOAD_DIR
-        value: /app/uploads
+      # Cloudinary credentials — set these manually in the Render dashboard
+      # after the first deploy (cloudinary.com Console -> Dashboard -> "API
+      # Environment variable" box has all three). `sync: false` means Render
+      # won't overwrite what you type in.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       # OTEL_EXPORTER_OTLP_LOGS_ENDPOINT is intentionally unset: without it the
       # app logs JSON to stdout, which Render's own log viewer captures. Add it
       # (plus OTEL_EXPORTER_OTLP_LOGS_HEADERS as a `sync: false` secret) only if

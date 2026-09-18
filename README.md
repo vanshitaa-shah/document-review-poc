@@ -40,6 +40,10 @@ short version:
   up. Set it to ship logs to the bundled OpenObserve container for search.
 - `ZO_ROOT_USER_EMAIL` / `ZO_ROOT_USER_PASSWORD` / `OPENOBSERVE_PORT` — OpenObserve's
   own admin login, at `http://localhost:5080`.
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` —
+  Cloudinary credentials for uploaded-file storage. Sign up at `cloudinary.com`
+  (free tier, no card required) and copy all three from the Console dashboard's
+  "API Environment variable" box.
 
 ### Running the tests
 
@@ -54,10 +58,13 @@ for why the race test is looped instead of run once.
 
 ### File persistence
 
-Uploaded files live in a Docker named volume (`uploads_data`), not inside the
-container. `docker compose restart` or `docker compose down` (without `-v`) does not
-touch it — only `docker compose down -v` wipes uploads and the database together, for
-a genuinely clean slate.
+Uploaded files live in Cloudinary, not on the container's own disk (see
+[Uploaded files live in object storage, not local disk](#uploaded-files-live-in-object-storage-not-local-disk)
+below for why). `docker compose restart`, `docker compose down`, even `down -v`
+— none of it touches Cloudinary; only the Postgres data (metadata: titles, versions,
+reviews, audit rows) lives in the local volume and gets wiped by `-v`. Deleting the
+Cloudinary asset directly would orphan a `DocumentVersion` row, but nothing in this
+app does that.
 
 ## Design decisions
 
@@ -65,12 +72,34 @@ These are the calls this project is graded on. Each one is deliberate, not a def
 
 ### Full copies per version, not diffs
 
-Every `DocumentVersion` row points at its own complete file on disk. Uploaded files
-are `.txt`, `.pdf`, `.md`, `.docx` — binary formats where a text diff is either
+Every `DocumentVersion` row points at its own complete, independent stored file (a
+Cloudinary asset — see below). Uploaded files are `.txt`, `.pdf`, `.md`, `.docx` —
+binary formats where a text diff is either
 meaningless (`.pdf`, `.docx` are zipped/binary containers) or not something a
 reviewer would ever read. Reconstructing version N is a single file read, not a
 diff replay — no risk of a broken diff chain, and the storage cost (a full copy per
 revision) is accepted deliberately over that complexity. See `phases/03-versioning-core.md`.
+
+### Uploaded files live in object storage, not local disk
+
+Originally a Docker named volume, matching the scope decision in `SCOPE.md` that a
+local volume was enough for a 12-day POC. That held for local Docker Compose, but
+broke on Render's free tier, whose container filesystem is ephemeral — a redeploy or
+a sleep/wake cycle would silently lose every uploaded file. Since free hosting was a
+hard requirement, uploads now go straight to a buffer in memory (`multer.memoryStorage()`,
+see `lib/upload.ts`) and out to Cloudinary (`lib/storage.ts`) instead of a local path.
+Cloudinary was picked specifically because its free tier needs no card on file —
+S3-compatible options (R2, Backblaze B2) are otherwise a more natural fit for
+arbitrary files, but R2 requires a card even to stay on the free tier. Uploaded
+files aren't images, so they're stored as `resource_type: 'raw'` (an opaque blob,
+no image processing). Each object's id is a fresh `randomUUID()` per file (see
+`uploadedFile.ts`), so its Cloudinary URL is unguessable even though Cloudinary
+itself doesn't enforce access control on it — this app's own auth and category
+checks are still what actually gates a download; the URL is never handed to the
+client directly, only built server-side per request (see `lib/storage.ts`).
+The `DocumentVersion.filePath`
+column is unchanged in shape — it just holds a Cloudinary object key now instead of
+a local path, so no migration was needed.
 
 ### Single current version, enforced by the database
 
