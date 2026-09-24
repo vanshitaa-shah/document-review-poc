@@ -1,21 +1,49 @@
 import { Prisma } from '@prisma/client'
 
-const MAX_ATTEMPTS = 5
+// Tuned for a remote DB (Neon), not just local Postgres: a round trip there
+// is ~275-300ms warm (and 2s+ on a cold start) versus <5ms local, so a
+// transaction attempt takes much longer in wall-clock time and the same
+// logical contention window burns through a small retry budget far faster.
+// 8 attempts with this backoff spans ~2.5s of total wait before giving up.
+const MAX_ATTEMPTS = 8
 const BASE_DELAY_MS = 20
 
+// Postgres 40001 (serialization_failure) reaches this app through several
+// different shapes depending on the Prisma engine and exactly when Postgres's
+// predicate-lock checker discovers the conflict — mid-statement or at commit.
+// Getting this wrong means zero retries ever actually fire, silently, no
+// matter how generous MAX_ATTEMPTS is. Known shapes, all handled below:
+//
+// 1. Classic query engine (pre-driver-adapter), $queryRaw failure:
+//    PrismaClientKnownRequestError, code P2010, meta.code === '40001'
+// 2. Driver adapter (`@prisma/adapter-pg`, since the Prisma 7 migration),
+//    $queryRaw failure:
+//    PrismaClientKnownRequestError, code P2010,
+//    meta.driverAdapterError.cause.originalCode === '40001'
+// 3. Driver adapter, conflict detected at COMMIT of an interactive
+//    transaction (not tied to one statement) — thrown directly, not even
+//    wrapped in a PrismaClientKnownRequestError:
+//    DriverAdapterError, cause.originalCode === '40001'
+// 4. Prisma's own interactive-transaction conflict detection:
+//    PrismaClientKnownRequestError, code P2034 (no raw-query wrapping at all)
 function isSerializationFailure(err: unknown): boolean {
-  // Prisma surfaces a Postgres 40001 (serialization_failure) two ways: as P2034
-  // for a conflict it detects itself in an interactive transaction, and as P2010
-  // ("raw query failed") with the underlying code in `meta.code` for a $queryRaw/
-  // $executeRaw statement — which is what our FOR UPDATE lock uses. Retry both;
-  // never let either reach the client as a 500.
+  const cause = (err as { cause?: { originalCode?: string } } | undefined)?.cause
+  if (cause?.originalCode === '40001') {
+    return true // shape 3
+  }
   if (!(err instanceof Prisma.PrismaClientKnownRequestError)) {
     return false
   }
   if (err.code === 'P2034') {
-    return true
+    return true // shape 4
   }
-  return err.code === 'P2010' && (err.meta as { code?: string } | undefined)?.code === '40001'
+  if (err.code !== 'P2010') {
+    return false
+  }
+  const meta = err.meta as
+    | { code?: string; driverAdapterError?: { cause?: { originalCode?: string } } }
+    | undefined
+  return meta?.code === '40001' || meta?.driverAdapterError?.cause?.originalCode === '40001' // shapes 1 & 2
 }
 
 function sleep(ms: number): Promise<void> {

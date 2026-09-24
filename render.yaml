@@ -18,10 +18,19 @@ services:
       # Session/JWT signing secret — Render generates a strong value.
       - key: JWT_SECRET
         generateValue: true
+      # Node 22's default dual-stack connection algorithm can hang/time out
+      # resolving Neon's pooler hostname in some network setups — IPv6
+      # attempts go nowhere and starve out the working IPv4 attempt. See
+      # lib/prisma.ts's driver-adapter setup; this is what actually connects.
+      - key: NODE_OPTIONS
+        value: --no-network-family-autoselection
       # Neon Postgres connection string — set manually in the Render dashboard
       # after the first deploy (neon.tech Console -> your project -> Connection
-      # Details -> "Connection string", pooled connection). Must keep
-      # `?sslmode=require`. `sync: false` means Render won't overwrite it.
+      # Details -> "Connection string", pooled connection). Keep `sslmode=require`
+      # but drop `channel_binding=require` if Neon's copy-paste string includes
+      # it — the `pg` driver this app uses doesn't support channel binding, and
+      # requiring it hangs the connection instead of just skipping it.
+      # `sync: false` means Render won't overwrite what you type in.
       - key: DATABASE_URL
         sync: false
       # Cloudinary credentials — set these manually in the Render dashboard

@@ -5,6 +5,7 @@ import { documentCategoryFilter } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
 import { touchDocument } from '../../lib/documentActivity.js'
 import { ConflictError, NotFoundError } from '../../lib/errors.js'
+import { transactionOptions } from '../../lib/transactionOptions.js'
 import { paramsSchema } from '../../schemas/documents.schema.js'
 
 // Moves the current version from DRAFT to SUBMITTED, making it visible to reviewers.
@@ -38,7 +39,7 @@ export async function submitDocument(req: Request, res: Response) {
       versionId: current!.id,
     })
     await touchDocument(tx, id)
-  })
+  }, transactionOptions)
 
   res.status(204).send()
 }

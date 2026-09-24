@@ -137,7 +137,7 @@ describe('concurrency races', () => {
       const approvalCount = await prisma.approval.count({ where: { versionId } })
       expect(approvalCount).toBe(approveWon ? 1 : 0)
     }
-  }, 120000) // 50 iterations, each uploading through real Cloudinary — see vitest.config.ts
+  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
 
   it('never creates two approvals when two reviewers approve the same version at once', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
@@ -162,7 +162,7 @@ describe('concurrency races', () => {
       })
       expect(currentCount).toBe(1)
     }
-  }, 120000) // 50 iterations, each uploading through real Cloudinary — see vitest.config.ts
+  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
 
   it('never leaves a pending review dangling on a superseded version when upload races request-changes', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
@@ -197,7 +197,7 @@ describe('concurrency races', () => {
       expect([201]).toContain(uploadStatus)
       expect([204, 409]).toContain(changesStatus)
     }
-  }, 120000) // 50 iterations, each uploading through real Cloudinary — see vitest.config.ts
+  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
 
   it('rejects approving an already-approved version and creates no second approval', async () => {
     const { versionId } = await seedSubmittedVersion()

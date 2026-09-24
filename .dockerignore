@@ -1,0 +1,16 @@
+# The Dockerfile's own `RUN npm install` produces the node_modules the image
+# actually uses — without this, `COPY api/ .` / `COPY web/ .` copies the
+# host's own node_modules right on top of it afterward, silently reverting
+# whatever version was just installed inside the image.
+node_modules
+**/node_modules
+dist
+.git
+api/uploads
+
+# Never bake local secrets into the image — Render/docker-compose inject the
+# real values as container env vars, this app doesn't need a .env file present
+# at all in production. (prisma.config.ts's `dotenv/config` import will just
+# no-op if no .env is found, which is what we want here.)
+.env
+**/.env

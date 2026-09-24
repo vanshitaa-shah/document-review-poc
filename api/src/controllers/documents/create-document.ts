@@ -5,6 +5,7 @@ import { isCategoryMember } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
 import { ForbiddenError } from '../../lib/errors.js'
 import { requireFile, versionFileFields } from '../../lib/uploadedFile.js'
+import { transactionOptions } from '../../lib/transactionOptions.js'
 import { createDocumentSchema } from '../../schemas/documents.schema.js'
 
 // Author uploads the initial file for a new document — version 1, current, DRAFT.
@@ -40,7 +41,7 @@ export async function createDocument(req: Request, res: Response) {
       versionId: version.id,
     })
     return { ...doc, currentVersion: version }
-  })
+  }, transactionOptions)
 
   res.status(201).json(document)
 }

@@ -42,9 +42,9 @@
       "Bash(git commit:*)"
     ],
     "deny": [
-      "Read(./.env)",
-      "Read(./api/.env)",
-      "Read(./web/.env)"
+    //   "Read(./.env)",
+    //   "Read(./api/.env)",
+    //   "Read(./web/.env)"
     ]
   }
 }

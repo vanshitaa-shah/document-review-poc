@@ -5,6 +5,7 @@ import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
 import { recordAuditEvent } from '../../lib/audit.js'
 import { touchDocument } from '../../lib/documentActivity.js'
 import { throwStaleVersionConflict } from '../../lib/reviewConflict.js'
+import { transactionOptions } from '../../lib/transactionOptions.js'
 import { NotFoundError } from '../../lib/errors.js'
 import { requestChangesBodySchema, versionParamsSchema } from '../../schemas/reviews.schema.js'
 
@@ -51,7 +52,7 @@ export async function requestChanges(req: Request, res: Response) {
       metadata: { comment },
     })
     await touchDocument(tx, version.documentId)
-  })
+  }, transactionOptions)
 
   res.status(204).send()
 }

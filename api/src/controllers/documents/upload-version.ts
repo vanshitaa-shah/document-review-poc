@@ -6,6 +6,7 @@ import { recordAuditEvent } from '../../lib/audit.js'
 import { touchDocument } from '../../lib/documentActivity.js'
 import { withSerializableRetry } from '../../lib/dbRetry.js'
 import { ConflictError, NotFoundError } from '../../lib/errors.js'
+import { transactionOptions } from '../../lib/transactionOptions.js'
 import { requireFile, versionFileFields } from '../../lib/uploadedFile.js'
 import { paramsSchema } from '../../schemas/documents.schema.js'
 
@@ -97,7 +98,7 @@ export async function uploadVersion(req: Request, res: Response) {
 
         return created
       },
-      { isolationLevel: 'Serializable' },
+      { isolationLevel: 'Serializable', ...transactionOptions },
     ),
   )
 

@@ -1,6 +1,13 @@
 import { Readable } from 'node:stream'
+import 'dotenv/config'
 import { vi } from 'vitest'
 
+// Running via `docker compose exec api npm test` gets DATABASE_URL etc. from
+// docker-compose.yml's environment block already. Running `npm test` directly
+// on the host doesn't — nothing else loads api/.env for a plain vitest run
+// (prisma.config.ts's own dotenv import only fires for the Prisma CLI), so
+// without this, DATABASE_URL is undefined and every single test fails the
+// same way, with no clue why.
 process.env.JWT_SECRET ??= 'test-secret'
 
 // Cloudinary is an external dependency, not something this POC is graded on

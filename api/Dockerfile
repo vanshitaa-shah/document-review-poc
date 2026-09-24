@@ -26,4 +26,4 @@ EXPOSE 3000
 # Render (and most hosts) inject $PORT; src/index.ts honors it.
 # seed-if-empty is a no-op once real data exists, so this CMD is the same in
 # dev and production — a fresh clone/volume boots seeded, a live DB never is.
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed-if-empty.ts && npm start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed-if-empty.ts && exec node dist/index.js"]
