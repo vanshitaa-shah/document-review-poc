@@ -43,7 +43,3 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      # OTEL_EXPORTER_OTLP_LOGS_ENDPOINT is intentionally unset: without it the
-      # app logs JSON to stdout, which Render's own log viewer captures. Add it
-      # (plus OTEL_EXPORTER_OTLP_LOGS_HEADERS as a `sync: false` secret) only if
-      # you stand up OpenObserve somewhere reachable from Render.

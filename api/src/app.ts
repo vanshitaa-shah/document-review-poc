@@ -13,8 +13,8 @@ import { errorHandler } from './middleware/errorHandler.js'
 
 export const app = express()
 
-// Structured JSON logs with a request id (req.id) on every line via the child logger
-// pino-http attaches as req.log — see lib/logger.ts for redaction and OTLP shipping.
+// One log line per request via the child logger pino-http attaches as req.log —
+// see lib/logger.ts for the minimal message format.
 app.use(pinoHttp(httpLoggerOptions))
 app.use(express.json())
 app.use(cookieParser())

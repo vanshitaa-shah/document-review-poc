@@ -21,6 +21,14 @@ services:
       context: .
       dockerfile: api/Dockerfile
     restart: unless-stopped
+    # This host's default resolv.conf lists internal corporate DNS servers
+    # first, which can't resolve public hostnames like Neon's (they time out
+    # before falling back to a public resolver) — go straight to public DNS
+    # so resolving a remote DATABASE_URL host doesn't stall past Prisma's
+    # connection timeout.
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       # Node 22's dual-stack "Happy Eyeballs" connection algorithm hangs/times
       # out resolving Neon's pooler hostname in this container's network (IPv6
@@ -33,27 +41,11 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
-      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-http://openobserve:5080/api/default/v1/logs}
-      OTEL_EXPORTER_OTLP_LOGS_HEADERS: ${OTEL_EXPORTER_OTLP_LOGS_HEADERS}
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
-      openobserve:
-        condition: service_started
-
-  openobserve:
-    image: public.ecr.aws/zinclabs/openobserve:latest
-    restart: unless-stopped
-    environment:
-      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL}
-      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD}
-    ports:
-      - "${OPENOBSERVE_PORT:-5080}:5080"
-    volumes:
-      - openobserve_data:/data
 
 volumes:
   postgres_data:
-  openobserve_data:

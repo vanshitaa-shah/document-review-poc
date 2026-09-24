@@ -45,7 +45,7 @@ Rules that keep this from rotting:
 
 ## Stack
 
-Node 22, Express 5, PostgreSQL 16, Prisma, Zod, JWT, multer, pino + OpenObserve.
+Node 22, Express 5, PostgreSQL 16, Prisma, Zod, JWT, multer, pino.
 React 19, Vite, Tailwind, react-router, @recogito/react-text-annotator.
 Vitest + Supertest against real Postgres.
 
