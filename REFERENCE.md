@@ -38,9 +38,8 @@ to actually use the Claude setup.
 
 | Thing | What it does |
 |---|---|
-| **Docker Compose** | Starts api + postgres + openobserve with one command |
-| **Named volumes** | Where Postgres data and uploaded files live. Survive restarts and rebuilds; only `docker compose down -v` wipes them. |
-| **OpenObserve** | Log storage with a search UI. One container, free, self-hosted. |
+| **Docker Compose** | Starts api + postgres with one command |
+| **Named volumes** | Where Postgres data lives. Survives restarts and rebuilds; only `docker compose down -v` wipes it. Uploaded files live in Cloudinary. |
 
 ---
 

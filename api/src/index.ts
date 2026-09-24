@@ -9,7 +9,7 @@ const server = app.listen(port, () => {
   logger.info(`api listening on port ${port}`)
 })
 
-// logger's transport targets (pino-pretty / pino-opentelemetry-transport) run on
+// logger's transport targets (pino-pretty / pino/file) run on
 // worker threads, so a write is not on disk/stdout the instant logger.info() returns.
 // Flushing before process.exit() avoids losing the last log line on shutdown.
 function flushLogger() {
