@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { prisma } from '../src/lib/prisma.js'
-import { createFixtures, type TestActor } from './support/fixtures.js'
-import { approveVersion, createSubmittedDocument, requestChanges, uploadRevision } from './support/http.js'
+import { prisma } from '../src/lib/prisma.ts'
+import { createFixtures, type TestActor } from './support/fixtures.ts'
+import { approveVersion, createSubmittedDocument, requestChanges, uploadRevision } from './support/http.ts'
 
 // The single most-checked suite in the spec — see versioning-invariants and
 // concurrency-testing skills. Real Postgres, looped, never mocked.

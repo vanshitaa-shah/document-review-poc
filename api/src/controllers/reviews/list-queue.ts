@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
-import { decodeCursor, encodeCursor } from '../../lib/pagination.js'
-import { getValidatedQuery } from '../../middleware/validate.js'
-import { queueQuerySchema } from '../../schemas/reviews.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
+import { decodeCursor, encodeCursor } from '../../lib/pagination.ts'
+import { getValidatedQuery } from '../../middleware/validate.ts'
+import { queueQuerySchema } from '../../schemas/reviews.schema.ts'
 
 // Current, submitted versions in the reviewer's categories — never drafts, never decided.
 export async function listReviewQueue(req: Request, res: Response) {

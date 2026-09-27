@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { UserRole } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { prisma } from '../../src/lib/prisma.js'
-import { signAuthToken } from '../../src/lib/jwt.js'
+import { prisma } from '../../src/lib/prisma.ts'
+import { signAuthToken } from '../../src/lib/jwt.ts'
 
 export const TEST_PASSWORD = 'password123'
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { clearAuthCookie } from '../../lib/authCookie.js'
+import { clearAuthCookie } from '../../lib/authCookie.ts'
 
 // An httpOnly cookie can't be cleared by client-side JS — the browser has to
 // be told to drop it via Set-Cookie. Works even with no/expired cookie, so

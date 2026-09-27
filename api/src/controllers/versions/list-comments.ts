@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
-import { decodeCursor, encodeCursor } from '../../lib/pagination.js'
-import { getValidatedQuery } from '../../middleware/validate.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { commentsQuerySchema } from '../../schemas/comments.schema.js'
-import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
+import { decodeCursor, encodeCursor } from '../../lib/pagination.ts'
+import { getValidatedQuery } from '../../middleware/validate.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { commentsQuerySchema } from '../../schemas/comments.schema.ts'
+import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
 
 // All comments on one version — anchors belong to this version alone, never the
 // document, so a superseded version keeps its own comments untouched (see

@@ -1,5 +1,5 @@
 import mammoth from 'mammoth'
-import { getObjectBuffer } from './storage.js'
+import { getObjectBuffer } from './storage.ts'
 
 // A version's file never changes after upload (a revision is a new version, never
 // a mutation of an existing one), so its converted HTML is safe to cache for the

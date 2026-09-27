@@ -1,13 +1,13 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
-import { recordAuditEvent } from '../../lib/audit.js'
-import { touchDocument } from '../../lib/documentActivity.js'
-import { throwStaleVersionConflict } from '../../lib/reviewConflict.js'
-import { transactionOptions } from '../../lib/transactionOptions.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { versionParamsSchema } from '../../schemas/reviews.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
+import { recordAuditEvent } from '../../lib/audit.ts'
+import { touchDocument } from '../../lib/documentActivity.ts'
+import { throwStaleVersionConflict } from '../../lib/reviewConflict.ts'
+import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { versionParamsSchema } from '../../schemas/reviews.schema.ts'
 
 // Single conditional write — only the current, submitted version can be approved.
 // See versioning-invariants skill, rule 2: never read isCurrent then write separately.

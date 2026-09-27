@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { prisma } from '../../lib/prisma.js'
+import { prisma } from '../../lib/prisma.ts'
 
 // Categories the caller belongs to — feeds the "new document" category picker.
 // Membership is the query predicate itself, not a post-fetch filter.

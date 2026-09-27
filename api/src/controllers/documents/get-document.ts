@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVisibilityFilter } from '../../lib/categoryAccess.js'
-import { withCurrentVersion } from '../../lib/documentResponse.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { paramsSchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVisibilityFilter } from '../../lib/categoryAccess.ts'
+import { withCurrentVersion } from '../../lib/documentResponse.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Fetches one document with its current version, scoped to category + draft visibility.
 export async function getDocument(req: Request, res: Response) {

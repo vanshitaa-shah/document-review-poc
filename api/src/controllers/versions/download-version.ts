@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
-import { getObjectStream } from '../../lib/storage.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
+import { getObjectStream } from '../../lib/storage.ts'
 
 // Serves the version's file; a DRAFT is only downloadable by its own document's author.
 // The approval record (if any) rides along as a header since the body is the file itself.

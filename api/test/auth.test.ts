@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { app } from '../src/app.js'
-import { prisma } from '../src/lib/prisma.js'
-import { TEST_PASSWORD } from './support/fixtures.js'
-import { extractAuthCookie, findAuthCookie } from './support/http.js'
+import { app } from '../src/app.ts'
+import { prisma } from '../src/lib/prisma.ts'
+import { TEST_PASSWORD } from './support/fixtures.ts'
+import { extractAuthCookie, findAuthCookie } from './support/http.ts'
 
 describe('POST /auth/login', () => {
   const email = `login-${randomUUID().slice(0, 8)}@example.com`

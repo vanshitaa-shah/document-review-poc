@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentCategoryFilter } from '../../lib/categoryAccess.js'
-import { recordAuditEvent } from '../../lib/audit.js'
-import { touchDocument } from '../../lib/documentActivity.js'
-import { ConflictError, NotFoundError } from '../../lib/errors.js'
-import { transactionOptions } from '../../lib/transactionOptions.js'
-import { paramsSchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentCategoryFilter } from '../../lib/categoryAccess.ts'
+import { recordAuditEvent } from '../../lib/audit.ts'
+import { touchDocument } from '../../lib/documentActivity.ts'
+import { ConflictError, NotFoundError } from '../../lib/errors.ts'
+import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Moves the current version from DRAFT to SUBMITTED, making it visible to reviewers.
 export async function submitDocument(req: Request, res: Response) {

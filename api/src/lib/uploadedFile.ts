@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { ValidationError } from './errors.js'
-import { putObject } from './storage.js'
+import { ValidationError } from './errors.ts'
+import { putObject } from './storage.ts'
 
 export function requireFile(file: Express.Multer.File | undefined): Express.Multer.File {
   if (!file) {

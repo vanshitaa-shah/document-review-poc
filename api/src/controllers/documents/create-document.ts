@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { isCategoryMember } from '../../lib/categoryAccess.js'
-import { recordAuditEvent } from '../../lib/audit.js'
-import { ForbiddenError } from '../../lib/errors.js'
-import { requireFile, versionFileFields } from '../../lib/uploadedFile.js'
-import { transactionOptions } from '../../lib/transactionOptions.js'
-import { createDocumentSchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { isCategoryMember } from '../../lib/categoryAccess.ts'
+import { recordAuditEvent } from '../../lib/audit.ts'
+import { ForbiddenError } from '../../lib/errors.ts'
+import { requireFile, versionFileFields } from '../../lib/uploadedFile.ts'
+import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { createDocumentSchema } from '../../schemas/documents.schema.ts'
 
 // Author uploads the initial file for a new document — version 1, current, DRAFT.
 export async function createDocument(req: Request, res: Response) {

@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { ConflictError } from './errors.js'
+import { ConflictError } from './errors.ts'
 
 // Approve and request-changes share this: when the conditional write affects zero
 // rows, name the version that is actually current instead of a bare 409.

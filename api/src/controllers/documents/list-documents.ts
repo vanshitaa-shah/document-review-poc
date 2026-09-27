@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express'
-import { prisma } from '../../lib/prisma.js'
-import { documentVisibilityFilter } from '../../lib/categoryAccess.js'
-import { withCurrentVersion } from '../../lib/documentResponse.js'
-import { decodeCursor, encodeCursor } from '../../lib/pagination.js'
-import { getValidatedQuery } from '../../middleware/validate.js'
-import { documentListQuerySchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVisibilityFilter } from '../../lib/categoryAccess.ts'
+import { withCurrentVersion } from '../../lib/documentResponse.ts'
+import { decodeCursor, encodeCursor } from '../../lib/pagination.ts'
+import { getValidatedQuery } from '../../middleware/validate.ts'
+import { documentListQuerySchema } from '../../schemas/documents.schema.ts'
 
 // Lists documents visible to the caller (own drafts + everyone's submitted+),
 // most-recently-changed first, cursor-paginated, optionally filtered by status

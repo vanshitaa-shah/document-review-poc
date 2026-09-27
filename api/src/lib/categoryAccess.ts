@@ -1,5 +1,5 @@
 import type { Prisma, UserRole } from '@prisma/client'
-import { prisma } from './prisma.js'
+import { prisma } from './prisma.ts'
 
 /**
  * Bakes category membership into the query itself so a non-member's row

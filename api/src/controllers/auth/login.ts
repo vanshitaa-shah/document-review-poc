@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcrypt'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { setAuthCookie } from '../../lib/authCookie.js'
-import { signAuthToken } from '../../lib/jwt.js'
-import { UnauthorizedError } from '../../lib/errors.js'
-import { loginSchema } from '../../schemas/auth.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { setAuthCookie } from '../../lib/authCookie.ts'
+import { signAuthToken } from '../../lib/jwt.ts'
+import { UnauthorizedError } from '../../lib/errors.ts'
+import { loginSchema } from '../../schemas/auth.schema.ts'
 
 export async function login(req: Request, res: Response) {
   const { email, password } = req.body as z.infer<typeof loginSchema>

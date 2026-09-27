@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth.js'
-import { listMyCategories } from '../controllers/categories/index.js'
+import { requireAuth } from '../middleware/auth.ts'
+import { listMyCategories } from '../controllers/categories/index.ts'
 
 export const categoriesRouter = Router()
 

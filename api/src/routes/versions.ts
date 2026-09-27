@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { requireAuth, requireRole } from '../middleware/auth.js'
-import { validate } from '../middleware/validate.js'
+import { requireAuth, requireRole } from '../middleware/auth.ts'
+import { validate } from '../middleware/validate.ts'
 import {
   approveVersion,
   createComment,
@@ -8,13 +8,13 @@ import {
   getVersionContent,
   listComments,
   requestChanges,
-} from '../controllers/versions/index.js'
-import { commentsQuerySchema, createCommentSchema } from '../schemas/comments.schema.js'
+} from '../controllers/versions/index.ts'
+import { commentsQuerySchema, createCommentSchema } from '../schemas/comments.schema.ts'
 import {
   requestChangesBodySchema,
   versionIdParamSchema,
   versionParamsSchema,
-} from '../schemas/reviews.schema.js'
+} from '../schemas/reviews.schema.ts'
 
 export const versionsRouter = Router()
 

@@ -1,8 +1,8 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { app } from '../src/app.js'
-import { createFixtures, TEST_PASSWORD, type TestActor } from './support/fixtures.js'
-import { extractAuthCookie } from './support/http.js'
+import { app } from '../src/app.ts'
+import { createFixtures, TEST_PASSWORD, type TestActor } from './support/fixtures.ts'
+import { extractAuthCookie } from './support/http.ts'
 
 // One test walking the whole flow end to end, exactly as a real session would
 // see it: login, upload, submit, comment, approve, download. Every other test

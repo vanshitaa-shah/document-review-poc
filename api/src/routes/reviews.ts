@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { requireAuth, requireRole } from '../middleware/auth.js'
-import { validate } from '../middleware/validate.js'
-import { listReviewQueue } from '../controllers/reviews/index.js'
-import { queueQuerySchema } from '../schemas/reviews.schema.js'
+import { requireAuth, requireRole } from '../middleware/auth.ts'
+import { validate } from '../middleware/validate.ts'
+import { listReviewQueue } from '../controllers/reviews/index.ts'
+import { queueQuerySchema } from '../schemas/reviews.schema.ts'
 
 export const reviewsRouter = Router()
 

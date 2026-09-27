@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import multer from 'multer'
 import { ZodError } from 'zod'
-import { AppError } from '../lib/errors.js'
+import { AppError } from '../lib/errors.ts'
 
 export function errorHandler(
   err: unknown,

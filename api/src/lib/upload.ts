@@ -1,6 +1,6 @@
 import path from 'node:path'
 import multer from 'multer'
-import { ValidationError } from './errors.js'
+import { ValidationError } from './errors.ts'
 
 export const ALLOWED_EXTENSIONS = new Set(['.txt', '.md', '.docx', '.html'])
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024

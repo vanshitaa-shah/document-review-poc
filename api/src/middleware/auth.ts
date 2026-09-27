@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express'
 import type { UserRole } from '@prisma/client'
-import { AUTH_COOKIE_NAME } from '../lib/authCookie.js'
-import { UnauthorizedError, ForbiddenError } from '../lib/errors.js'
-import { verifyAuthToken } from '../lib/jwt.js'
+import { AUTH_COOKIE_NAME } from '../lib/authCookie.ts'
+import { UnauthorizedError, ForbiddenError } from '../lib/errors.ts'
+import { verifyAuthToken } from '../lib/jwt.ts'
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const token: string | undefined = req.cookies?.[AUTH_COOKIE_NAME]

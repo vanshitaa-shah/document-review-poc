@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { validate } from '../middleware/validate.js'
-import { login } from '../controllers/auth/login.js'
-import { logout } from '../controllers/auth/logout.js'
-import { loginSchema } from '../schemas/auth.schema.js'
+import { validate } from '../middleware/validate.ts'
+import { login } from '../controllers/auth/login.ts'
+import { logout } from '../controllers/auth/logout.ts'
+import { loginSchema } from '../schemas/auth.schema.ts'
 
 export const authRouter = Router()
 

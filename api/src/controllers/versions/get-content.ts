@@ -1,13 +1,13 @@
 import path from 'node:path'
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter } from '../../lib/categoryAccess.js'
-import { getDocxHtml } from '../../lib/docxConvert.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { sanitizeVersionHtml } from '../../lib/sanitizeHtml.js'
-import { versionIdParamSchema } from '../../schemas/reviews.schema.js'
-import { getObjectBuffer } from '../../lib/storage.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
+import { getDocxHtml } from '../../lib/docxConvert.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { sanitizeVersionHtml } from '../../lib/sanitizeHtml.ts'
+import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
+import { getObjectBuffer } from '../../lib/storage.ts'
 
 // Renderable content for the inline-comment view: txt/md come back as plain text
 // (the client renders md with react-markdown), docx is converted to HTML

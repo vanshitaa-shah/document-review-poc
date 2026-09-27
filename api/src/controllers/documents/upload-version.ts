@@ -1,14 +1,14 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentCategoryFilter } from '../../lib/categoryAccess.js'
-import { recordAuditEvent } from '../../lib/audit.js'
-import { touchDocument } from '../../lib/documentActivity.js'
-import { withSerializableRetry } from '../../lib/dbRetry.js'
-import { ConflictError, NotFoundError } from '../../lib/errors.js'
-import { transactionOptions } from '../../lib/transactionOptions.js'
-import { requireFile, versionFileFields } from '../../lib/uploadedFile.js'
-import { paramsSchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentCategoryFilter } from '../../lib/categoryAccess.ts'
+import { recordAuditEvent } from '../../lib/audit.ts'
+import { touchDocument } from '../../lib/documentActivity.ts'
+import { withSerializableRetry } from '../../lib/dbRetry.ts'
+import { ConflictError, NotFoundError } from '../../lib/errors.ts'
+import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { requireFile, versionFileFields } from '../../lib/uploadedFile.ts'
+import { paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Revision upload — one SERIALIZABLE transaction: lock the current version,
 // demote it, insert the new one, cancel any pending reviews on the old one,

@@ -1,1 +1,1 @@
-export { listMyCategories } from './list-my-categories.js'
+export { listMyCategories } from './list-my-categories.ts'

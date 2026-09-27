@@ -1,8 +1,8 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { app } from '../src/app.js'
-import { prisma } from '../src/lib/prisma.js'
-import { createFixtures, type TestActor } from './support/fixtures.js'
+import { app } from '../src/app.ts'
+import { prisma } from '../src/lib/prisma.ts'
+import { createFixtures, type TestActor } from './support/fixtures.ts'
 
 describe('category isolation', () => {
   const fixtures = createFixtures('Isolation')

@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVisibilityFilter } from '../../lib/categoryAccess.js'
-import { decodeCursor, encodeCursor } from '../../lib/pagination.js'
-import { getValidatedQuery } from '../../middleware/validate.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { listQuerySchema, paramsSchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVisibilityFilter } from '../../lib/categoryAccess.ts'
+import { decodeCursor, encodeCursor } from '../../lib/pagination.ts'
+import { getValidatedQuery } from '../../middleware/validate.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { listQuerySchema, paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Full audit trail for one document, newest first, cursor-paginated, category access enforced.
 export async function listAudit(req: Request, res: Response) {

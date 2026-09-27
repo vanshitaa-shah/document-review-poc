@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express'
 import type { z } from 'zod'
-import { prisma } from '../../lib/prisma.js'
-import { documentVersionCategoryFilter, documentVisibilityFilter } from '../../lib/categoryAccess.js'
-import { getValidatedQuery } from '../../middleware/validate.js'
-import { NotFoundError } from '../../lib/errors.js'
-import { paramsSchema, versionsQuerySchema } from '../../schemas/documents.schema.js'
+import { prisma } from '../../lib/prisma.ts'
+import { documentVersionCategoryFilter, documentVisibilityFilter } from '../../lib/categoryAccess.ts'
+import { getValidatedQuery } from '../../middleware/validate.ts'
+import { NotFoundError } from '../../lib/errors.ts'
+import { paramsSchema, versionsQuerySchema } from '../../schemas/documents.schema.ts'
 
 // Full version history for a document — uploader, status, current flag — newest first.
 export async function listVersions(req: Request, res: Response) {

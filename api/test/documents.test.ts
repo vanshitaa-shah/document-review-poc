@@ -1,8 +1,8 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { app } from '../src/app.js'
-import { createFixtures, type TestActor } from './support/fixtures.js'
-import { submitDocument, uploadDocument } from './support/http.js'
+import { app } from '../src/app.ts'
+import { createFixtures, type TestActor } from './support/fixtures.ts'
+import { submitDocument, uploadDocument } from './support/http.ts'
 
 describe('upload & submit', () => {
   const fixtures = createFixtures('Docs')

@@ -1,7 +1,7 @@
 import { Router } from 'express'
-import { requireAuth, requireRole } from '../middleware/auth.js'
-import { validate } from '../middleware/validate.js'
-import { upload } from '../lib/upload.js'
+import { requireAuth, requireRole } from '../middleware/auth.ts'
+import { validate } from '../middleware/validate.ts'
+import { upload } from '../lib/upload.ts'
 import {
   createDocument,
   getDocument,
@@ -10,14 +10,14 @@ import {
   listVersions,
   submitDocument,
   uploadVersion,
-} from '../controllers/documents/index.js'
+} from '../controllers/documents/index.ts'
 import {
   createDocumentSchema,
   documentListQuerySchema,
   listQuerySchema,
   paramsSchema,
   versionsQuerySchema,
-} from '../schemas/documents.schema.js'
+} from '../schemas/documents.schema.ts'
 
 export const documentsRouter = Router()
 
