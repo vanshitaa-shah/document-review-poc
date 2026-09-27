@@ -12,8 +12,9 @@ the highlight against that exact text. Medium-style.
 - `.txt` — render as-is in a `<pre>`
 - `.md` — `react-markdown`
 - `.docx` — `mammoth` converts to HTML (server-side, cached per version)
-- `.pdf` — no highlighting, and no commenting. Every comment is anchored to
-  rendered text; there is no version-level (generic) comment.
+- `.html` — served as-is (already the target format), sanitized server-side
+- Every comment is anchored to rendered text; there is no version-level
+  (generic) comment.
 - `GET /versions/:id/content` — returns the renderable text/HTML for a version
 
 **Annotation layer**
@@ -62,6 +63,5 @@ Narrow to `.txt` and `.md` only, and drop the docx conversion. Do not take the t
 out of phase 05.
 
 ## Not in this phase
-- PDF highlighting
 - Re-anchoring comments onto a new version
 - Replies, threads, mentions, resolve/unresolve

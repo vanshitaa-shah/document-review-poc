@@ -63,7 +63,7 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer())
 }
 
-// Streamed read — used for download, so a large PDF isn't buffered fully in
+// Streamed read — used for download, so a large file isn't buffered fully in
 // memory before it starts reaching the client.
 export async function getObjectStream(key: string): Promise<Readable> {
   const res = await fetch(deliveryUrl(key))

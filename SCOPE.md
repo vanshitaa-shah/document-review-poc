@@ -21,8 +21,8 @@
 - `@recogito/react-text-annotator` — text selection, highlight rendering, comment anchors
 - `mammoth` — converts `.docx` to HTML so it can be highlighted
 - `react-markdown` — renders `.md`
-- `.txt` renders as-is; `.pdf` has no highlighting and no commenting — every comment
-  is anchored to rendered text, there is no version-level (generic) comment
+- `.txt` renders as-is — every comment is anchored to rendered text, there is no
+  version-level (generic) comment
 
 **Logging**
 - `pino` — structured JSON logs from the app
@@ -58,7 +58,7 @@
 **Workflow**
 - Author uploads: file + title + category → submits for review → uploads revisions
 - Document becomes visible to reviewers who have access to that category
-- Uploads limited to `.txt`, `.pdf`, `.md`, `.docx`, max 10 MB — rejected at the boundary
+- Uploads limited to `.txt`, `.md`, `.docx`, max 10 MB — rejected at the boundary
 - Reviewer: approve, or request changes with a required comment
 - One approval finishes it
 - Approved version is locked — mutations return `409`, new content needs a new revision
@@ -72,8 +72,7 @@
 - Anchors stored as quote + character offsets, tied to **one specific version**
 - Comments **stay on the version they were made on** — a new version starts clean, and the
   old version's comments remain visible in history
-- `.txt`, `.md`, `.docx` support highlighting; `.pdf` supports neither highlighting nor
-  commenting — there is no version-level (generic) comment
+- `.txt`, `.md`, `.docx` support highlighting — there is no version-level (generic) comment
 
 **Access control**
 - Category ↔ User membership; a user has one role and can belong to many categories
@@ -114,12 +113,10 @@
 - Admin UI for users and categories — seed script only
 - Cloudinary / S3 / MinIO — the Docker volume persists, so it isn't needed
 - Diff-based version storage
-- PDF inline highlighting (pdf.js text layer)
 - Re-anchoring comments onto a new version
 - Comment replies, threads, mentions, resolve/unresolve
 - Multiple required reviewers, quorum, size/category thresholds
 - Notifications, email, webhooks
-- Document preview for PDF beyond download, text extraction, search
 - Soft delete, archival, retention
 - Rate limiting, CORS hardening, prod security posture
 - Metrics and tracing — logs only
@@ -135,7 +132,7 @@
 - One role per user, many categories per user
 - Files in a Docker named volume (persists across restarts and rebuilds; only
   `docker compose down -v` wipes it)
-- File types: `.txt`, `.pdf`, `.md`, `.docx`
+- File types: `.txt`, `.md`, `.docx`, `.html`
 - One approval is sufficient
 - Full copies per version, not diffs
 - Revision upload cancels in-flight reviews

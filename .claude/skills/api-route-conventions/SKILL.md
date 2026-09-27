@@ -117,6 +117,6 @@ Composite indexes to match: `(document_id, id)`, `(category_id, id)`.
 ## File uploads
 
 - multer to the `./uploads` volume, filename is a generated id — never the user's
-- Allowed: `.txt`, `.pdf`, `.md`, `.docx`. Max 10 MB. Rejected at the boundary.
+- Allowed: `.txt`, `.md`, `.docx`, `.html`. Max 10 MB. Rejected at the boundary.
 - Store sha256 and byte size on every version
 - A request with no file is a 400 before any business logic runs

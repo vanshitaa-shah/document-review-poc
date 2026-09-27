@@ -10,5 +10,9 @@ export default defineConfig({
     // the default 5s budget is too tight for that, especially with several
     // uploads in one test.
     testTimeout: 30000,
+    // A cold connection to the remote Postgres (Neon) can itself take ~10s,
+    // before any of a beforeAll/afterAll's several setup/teardown queries even
+    // run — the default 10s hook budget is tuned for local Postgres, not this.
+    hookTimeout: 30000,
   },
 })

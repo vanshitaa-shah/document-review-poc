@@ -163,13 +163,14 @@ describe('inline comments', () => {
     expect(res.body.content).not.toContain('onclick')
   })
 
-  it('reports pdf as unsupported for inline rendering', async () => {
-    const doc = await createDocument('Pdf content', 'v1.pdf', '%PDF-1.4 fake')
+  it('rejects an unsupported file extension at upload, before any document is created', async () => {
     const res = await request(app)
-      .get(`/versions/${doc.currentVersion.id}/content`)
+      .post('/documents')
       .set('Cookie', `auth_token=${authorToken}`)
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ format: 'unsupported', content: null })
+      .field('title', 'Pdf content')
+      .field('categoryId', categoryId)
+      .attach('file', Buffer.from('%PDF-1.4 fake'), 'v1.pdf')
+    expect(res.status).toBe(400)
   })
 
   it('lets a reviewer post a highlighted comment and both author and reviewer see it', async () => {

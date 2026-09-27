@@ -14,8 +14,9 @@ import { getObjectBuffer } from '../../lib/storage.js'
 // server-side and cached, html is served as-is (already the target format).
 // Anchor offsets are computed client-side against whatever is actually
 // rendered — see AnnotatedContent.tsx — so the format doesn't need to match
-// the raw file byte-for-byte. pdf has no inline rendering, so it has no
-// commenting either — every comment is anchored to rendered text.
+// the raw file byte-for-byte. The `unsupported` fallback below is now
+// unreachable for any file this app accepts (see ALLOWED_EXTENSIONS in
+// upload.ts) — kept as a defensive default, not a live code path.
 export async function getVersionContent(req: Request, res: Response) {
   const { id } = req.params as z.infer<typeof versionIdParamSchema>
   const { id: userId } = req.user!

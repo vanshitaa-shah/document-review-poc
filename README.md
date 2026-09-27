@@ -43,7 +43,7 @@ pass by luck. See [concurrency-testing](.claude/skills/concurrency-testing/SKILL
 
 ## Design decisions
 
-**Full copies per version, not diffs.** Uploads are `.txt`, `.pdf`, `.md` or `.docx`,
+**Full copies per version, not diffs.** Uploads are `.txt`, `.md`, `.docx` or `.html`,
 and a text diff means nothing for the binary formats. Reading version N is one file read
 with no diff chain to break. The extra storage is an accepted cost.
 

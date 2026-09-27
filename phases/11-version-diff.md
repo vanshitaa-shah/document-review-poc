@@ -21,14 +21,14 @@ whole document to spot edits.
 - Opens a diff view: fetches content for both the selected version and the one
   immediately before it (`versionNumber - 1`), computes a word-level diff, renders
   added text highlighted green / removed text struck-through red — GitHub-diff style
-- `.pdf`/unsupported formats: no diffable text — show "No inline diff available for
+- Unsupported formats: no diffable text — show "No inline diff available for
   this file type" instead of attempting one
 - Reuses existing category-access-checked endpoints; no new authorization surface
 
 ## Done when
 - From the History tab, comparing v2 against v1 (or any vN against vN-1) shows a
   word-level diff with additions/removals visually distinct
-- Comparing an unsupported format (pdf) shows the fallback message, not a crash
+- Comparing an unsupported format shows the fallback message, not a crash
 - Comparing v1 (no predecessor) does not show the compare action at all
 
 ## Not in this phase

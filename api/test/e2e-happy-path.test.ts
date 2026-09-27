@@ -131,7 +131,7 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     expect(audit.status).toBe(200)
     const actions = audit.body.items.map((e: { action: string }) => e.action).reverse()
     expect(actions).toEqual(['DOCUMENT_UPLOADED', 'SUBMITTED', 'APPROVED'])
-  })
+  }, 120000) // 11 sequential requests against Neon — default 30s assumes ~300ms/round-trip, too tight here
 })
 
 function getAuthCookie(res: request.Response): string {

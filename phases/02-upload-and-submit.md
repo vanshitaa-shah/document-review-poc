@@ -8,7 +8,7 @@ An author can upload a document with metadata and submit it for review.
 ## Tasks
 - `multer` writing to the `./uploads` volume, filename = a generated id, not the
   user's filename
-- Accept only `.txt`, `.pdf`, `.md`, `.docx`; reject anything else
+- Accept only `.txt`, `.md`, `.docx`, `.html`; reject anything else
 - Max 10 MB
 - Reject a submission with no file — before it reaches any business logic
 - Compute and store sha256 + byte size for each upload

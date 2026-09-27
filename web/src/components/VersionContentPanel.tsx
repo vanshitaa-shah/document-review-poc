@@ -11,8 +11,9 @@ interface VersionContent {
 
 // Rendered version content (text/markdown/html) with recogito highlighting.
 // Every comment is anchored to a highlighted passage — there is no
-// version-level (generic) comment, so an unsupported format (pdf) has no
-// commenting at all. One panel per current version — DocumentDetailPage owns
+// version-level (generic) comment, so an unsupported format has no
+// commenting at all (currently unreachable — see ALLOWED_EXTENSIONS in
+// upload.ts). One panel per current version — DocumentDetailPage owns
 // all the fetching and state.
 export function VersionContentPanel({
   status,

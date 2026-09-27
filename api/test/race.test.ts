@@ -137,7 +137,8 @@ describe('concurrency races', () => {
       const approvalCount = await prisma.approval.count({ where: { versionId } })
       expect(approvalCount).toBe(approveWon ? 1 : 0)
     }
-  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
+  }, 900000) // 50 iterations against Neon — observed real round-trips here run well past the
+  // ~300ms this budget originally assumed, so this needs more headroom, not fewer iterations
 
   it('never creates two approvals when two reviewers approve the same version at once', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
@@ -162,7 +163,7 @@ describe('concurrency races', () => {
       })
       expect(currentCount).toBe(1)
     }
-  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
+  }, 900000) // 50 iterations against Neon — see timeout note on the first race test above
 
   it('never leaves a pending review dangling on a superseded version when upload races request-changes', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
@@ -197,7 +198,7 @@ describe('concurrency races', () => {
       expect([201]).toContain(uploadStatus)
       expect([204, 409]).toContain(changesStatus)
     }
-  }, 300000) // 50 iterations against Neon (~300ms/round-trip, more under lock contention/retries)
+  }, 900000) // 50 iterations against Neon — see timeout note on the first race test above
 
   it('rejects approving an already-approved version and creates no second approval', async () => {
     const { versionId } = await seedSubmittedVersion()
