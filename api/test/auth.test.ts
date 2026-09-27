@@ -4,14 +4,15 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.js'
 import { prisma } from '../src/lib/prisma.js'
+import { TEST_PASSWORD } from './support/fixtures.js'
+import { extractAuthCookie, findAuthCookie } from './support/http.js'
 
 describe('POST /auth/login', () => {
   const email = `login-${randomUUID().slice(0, 8)}@example.com`
-  const password = 'password123'
   let userId: string
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10)
     const user = await prisma.user.create({
       data: { email, passwordHash, role: 'REVIEWER' },
     })
@@ -23,14 +24,13 @@ describe('POST /auth/login', () => {
   })
 
   it('sets an httpOnly auth cookie for correct credentials', async () => {
-    const res = await request(app).post('/auth/login').send({ email, password })
+    const res = await request(app).post('/auth/login').send({ email, password: TEST_PASSWORD })
 
     expect(res.status).toBe(200)
     expect(res.body.token).toBeUndefined()
     expect(res.body.user).toMatchObject({ id: userId, email, role: 'REVIEWER' })
 
-    const cookies = res.headers['set-cookie'] as unknown as string[]
-    const authCookie = cookies?.find((c) => c.startsWith('auth_token='))
+    const authCookie = findAuthCookie(res)
     expect(authCookie).toBeDefined()
     expect(authCookie).toContain('HttpOnly')
     expect(authCookie).toMatch(/SameSite=Lax/i)
@@ -45,7 +45,7 @@ describe('POST /auth/login', () => {
   it('rejects an unknown email', async () => {
     const res = await request(app)
       .post('/auth/login')
-      .send({ email: 'nobody@example.com', password })
+      .send({ email: 'nobody@example.com', password: TEST_PASSWORD })
 
     expect(res.status).toBe(401)
   })
@@ -57,9 +57,8 @@ describe('POST /auth/login', () => {
   })
 
   it('the cookie set by login authenticates a subsequent request', async () => {
-    const login = await request(app).post('/auth/login').send({ email, password })
-    const cookies = login.headers['set-cookie'] as unknown as string[]
-    const authCookie = cookies.find((c) => c.startsWith('auth_token='))!
+    const login = await request(app).post('/auth/login').send({ email, password: TEST_PASSWORD })
+    const authCookie = extractAuthCookie(login)
 
     const res = await request(app).get('/documents').set('Cookie', authCookie)
     expect(res.status).toBe(200)
@@ -76,8 +75,7 @@ describe('POST /auth/logout', () => {
     const res = await request(app).post('/auth/logout')
 
     expect(res.status).toBe(204)
-    const cookies = res.headers['set-cookie'] as unknown as string[]
-    const authCookie = cookies?.find((c) => c.startsWith('auth_token='))
+    const authCookie = findAuthCookie(res)
     expect(authCookie).toBeDefined()
     // clearCookie re-sets the cookie with an already-past expiry, not a real value.
     expect(authCookie).toMatch(/auth_token=;/)

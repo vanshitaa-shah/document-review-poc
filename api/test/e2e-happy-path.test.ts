@@ -1,9 +1,8 @@
-import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.js'
-import { prisma } from '../src/lib/prisma.js'
+import { createFixtures, TEST_PASSWORD, type TestActor } from './support/fixtures.js'
+import { extractAuthCookie } from './support/http.js'
 
 // One test walking the whole flow end to end, exactly as a real session would
 // see it: login, upload, submit, comment, approve, download. Every other test
@@ -11,56 +10,26 @@ import { prisma } from '../src/lib/prisma.js'
 // still fit together when driven in order through the actual HTTP surface,
 // with cookies carried request to request like a browser would.
 describe('E2E happy path: login -> upload -> submit -> comment -> approve -> download', () => {
-  const suffix = randomUUID().slice(0, 8)
-  const password = 'password123'
+  const fixtures = createFixtures('E2E')
+  const { documentIds } = fixtures
 
   let categoryId: string
-  let authorId: string
-  let reviewerId: string
-  const documentIds: string[] = []
+  let author: TestActor
+  let reviewer: TestActor
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash(password, 10)
-
-    const category = await prisma.category.create({ data: { name: `E2E ${suffix}` } })
-    categoryId = category.id
-
-    const author = await prisma.user.create({
-      data: { email: `e2e-author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
-    })
-    const reviewer = await prisma.user.create({
-      data: { email: `e2e-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    authorId = author.id
-    reviewerId = reviewer.id
-
-    await prisma.categoryMembership.createMany({
-      data: [
-        { userId: authorId, categoryId },
-        { userId: reviewerId, categoryId },
-      ],
-    })
+    categoryId = await fixtures.category('Primary')
+    author = await fixtures.actor('AUTHOR', 'author', categoryId)
+    reviewer = await fixtures.actor('REVIEWER', 'reviewer', categoryId)
   })
 
-  afterAll(async () => {
-    await prisma.auditEvent.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.comment.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.approval.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.review.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.documentVersion.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.document.deleteMany({ where: { id: { in: documentIds } } })
-    await prisma.categoryMembership.deleteMany({ where: { categoryId } })
-    await prisma.user.deleteMany({ where: { id: { in: [authorId, reviewerId] } } })
-    await prisma.category.deleteMany({ where: { id: categoryId } })
-  })
+  afterAll(fixtures.cleanup)
 
   it('walks the full flow as two real sessions, cookies and all', async () => {
     // 1. Author logs in — the login endpoint sets an httpOnly cookie, not a token in the body.
-    const authorLogin = await request(app)
-      .post('/auth/login')
-      .send({ email: `e2e-author-${suffix}@example.com`, password })
+    const authorLogin = await request(app).post('/auth/login').send({ email: author.email, password: TEST_PASSWORD })
     expect(authorLogin.status).toBe(200)
-    const authorCookie = getAuthCookie(authorLogin)
+    const authorCookie = extractAuthCookie(authorLogin)
 
     // 2. Author uploads a document.
     const upload = await request(app)
@@ -81,9 +50,9 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     // 4. Reviewer logs in separately and sees it in the queue.
     const reviewerLogin = await request(app)
       .post('/auth/login')
-      .send({ email: `e2e-reviewer-${suffix}@example.com`, password })
+      .send({ email: reviewer.email, password: TEST_PASSWORD })
     expect(reviewerLogin.status).toBe(200)
-    const reviewerCookie = getAuthCookie(reviewerLogin)
+    const reviewerCookie = extractAuthCookie(reviewerLogin)
 
     const queue = await request(app).get('/reviews/queue').set('Cookie', reviewerCookie)
     expect(queue.status).toBe(200)
@@ -134,7 +103,7 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     expect(download.status).toBe(200)
     expect(download.text).toBe('The quick red fox jumps over the lazy dog.')
     const approvalRecord = JSON.parse(download.headers['x-approval-record']!)
-    expect(approvalRecord.approverId).toBe(reviewerId)
+    expect(approvalRecord.approverId).toBe(reviewer.id)
 
     // 9. The approved version is locked — a new revision attempt is refused, not silently accepted.
     const lockedRevision = await request(app)
@@ -159,10 +128,3 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     ])
   }, 120000) // 13 sequential requests against Neon — default 30s assumes ~300ms/round-trip, too tight here
 })
-
-function getAuthCookie(res: request.Response): string {
-  const cookies = res.headers['set-cookie'] as unknown as string[]
-  const authCookie = cookies?.find((c) => c.startsWith('auth_token='))
-  if (!authCookie) throw new Error('no auth_token cookie in response')
-  return authCookie.split(';')[0]!
-}

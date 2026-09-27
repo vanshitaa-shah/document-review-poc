@@ -1,11 +1,10 @@
-import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
 import JSZip from 'jszip'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.js'
 import { prisma } from '../src/lib/prisma.js'
-import { signAuthToken } from '../src/lib/jwt.js'
+import { createFixtures, type TestActor } from './support/fixtures.js'
+import { createDocument, submitDocument, uploadDocument } from './support/http.js'
 
 // A minimal but genuinely valid .docx — just enough OOXML for mammoth to parse
 // one paragraph of text back out of it.
@@ -40,102 +39,56 @@ async function buildMinimalDocx(text: string): Promise<Buffer> {
 }
 
 describe('inline comments', () => {
-  const suffix = randomUUID().slice(0, 8)
+  const fixtures = createFixtures('Comments')
+  const { documentIds } = fixtures
 
   let categoryId: string
   let otherCategoryId: string
-  let authorId: string
-  let reviewerId: string
-  let outsiderId: string
-  let authorToken: string
-  let reviewerToken: string
-  let outsiderToken: string
-  const documentIds: string[] = []
+  let author: TestActor
+  let reviewer: TestActor
+  let outsider: TestActor
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash('password123', 10)
-
-    const category = await prisma.category.create({ data: { name: `Comments ${suffix}` } })
-    const otherCategory = await prisma.category.create({ data: { name: `Comments Other ${suffix}` } })
-    categoryId = category.id
-    otherCategoryId = otherCategory.id
-
-    const author = await prisma.user.create({
-      data: { email: `comments-author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
-    })
-    const reviewer = await prisma.user.create({
-      data: { email: `comments-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    const outsider = await prisma.user.create({
-      data: { email: `comments-outsider-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    authorId = author.id
-    reviewerId = reviewer.id
-    outsiderId = outsider.id
-
-    await prisma.categoryMembership.createMany({
-      data: [
-        { userId: authorId, categoryId },
-        { userId: reviewerId, categoryId },
-        { userId: outsiderId, categoryId: otherCategoryId },
-      ],
-    })
-
-    authorToken = signAuthToken({ sub: authorId, role: 'AUTHOR' })
-    reviewerToken = signAuthToken({ sub: reviewerId, role: 'REVIEWER' })
-    outsiderToken = signAuthToken({ sub: outsiderId, role: 'REVIEWER' })
+    categoryId = await fixtures.category('Primary')
+    otherCategoryId = await fixtures.category('Other')
+    author = await fixtures.actor('AUTHOR', 'author', categoryId)
+    reviewer = await fixtures.actor('REVIEWER', 'reviewer', categoryId)
+    outsider = await fixtures.actor('REVIEWER', 'outsider', otherCategoryId)
   })
 
-  afterAll(async () => {
-    await prisma.comment.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.auditEvent.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.approval.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.review.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.documentVersion.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.document.deleteMany({ where: { id: { in: documentIds } } })
-    await prisma.categoryMembership.deleteMany({
-      where: { categoryId: { in: [categoryId, otherCategoryId] } },
-    })
-    await prisma.user.deleteMany({ where: { id: { in: [authorId, reviewerId, outsiderId] } } })
-    await prisma.category.deleteMany({ where: { id: { in: [categoryId, otherCategoryId] } } })
-  })
+  afterAll(fixtures.cleanup)
 
-  async function createDocument(title: string, fileName: string, content: Buffer | string) {
-    const create = await request(app)
-      .post('/documents')
-      .set('Cookie', `auth_token=${authorToken}`)
-      .field('title', title)
-      .field('categoryId', categoryId)
-      .attach('file', Buffer.isBuffer(content) ? content : Buffer.from(content), fileName)
-    documentIds.push(create.body.id)
-    return create.body as { id: string; currentVersion: { id: string } }
+  async function document(title: string, fileName: string, content: Buffer | string) {
+    const doc = await createDocument(author.token, { title, categoryId, fileName, content })
+    documentIds.push(doc.id)
+    return doc
   }
 
   it('renders .txt content verbatim', async () => {
-    const doc = await createDocument('Text content', 'v1.txt', 'hello world\nsecond line')
+    const doc = await document('Text content', 'v1.txt', 'hello world\nsecond line')
     const res = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ format: 'text', content: 'hello world\nsecond line' })
   })
 
   it('renders .md content as markdown source', async () => {
-    const doc = await createDocument('Markdown content', 'v1.md', '# Title\n\nSome **bold** text')
+    const doc = await document('Markdown content', 'v1.md', '# Title\n\nSome **bold** text')
     const res = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ format: 'markdown', content: '# Title\n\nSome **bold** text' })
   })
 
   it('converts .docx to cached HTML', async () => {
     const docx = await buildMinimalDocx('Hello from docx')
-    const doc = await createDocument('Docx content', 'v1.docx', docx)
+    const doc = await document('Docx content', 'v1.docx', docx)
 
     const res = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(res.status).toBe(200)
     expect(res.body.format).toBe('html')
     expect(res.body.content).toContain('Hello from docx')
@@ -143,19 +96,19 @@ describe('inline comments', () => {
     // Second call should hit the cache and return byte-identical HTML.
     const second = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(second.body.content).toBe(res.body.content)
   })
 
   it('renders .html content and strips scripts and event handlers', async () => {
-    const doc = await createDocument(
+    const doc = await document(
       'Html content',
       'v1.html',
       '<p onclick="alert(1)">Hello <strong>world</strong></p><script>alert(1)</script>',
     )
     const res = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(res.status).toBe(200)
     expect(res.body.format).toBe('html')
     expect(res.body.content).toContain('Hello <strong>world</strong>')
@@ -164,22 +117,22 @@ describe('inline comments', () => {
   })
 
   it('rejects an unsupported file extension at upload, before any document is created', async () => {
-    const res = await request(app)
-      .post('/documents')
-      .set('Cookie', `auth_token=${authorToken}`)
-      .field('title', 'Pdf content')
-      .field('categoryId', categoryId)
-      .attach('file', Buffer.from('%PDF-1.4 fake'), 'v1.pdf')
+    const res = await uploadDocument(author.token, {
+      title: 'Pdf content',
+      categoryId,
+      fileName: 'v1.pdf',
+      content: '%PDF-1.4 fake',
+    })
     expect(res.status).toBe(400)
   })
 
   it('lets a reviewer post a highlighted comment and both author and reviewer see it', async () => {
-    const doc = await createDocument('Commentable doc', 'v1.txt', 'The quick brown fox jumps')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('Commentable doc', 'v1.txt', 'The quick brown fox jumps')
+    await submitDocument(author.token, doc.id)
 
     const create = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({
         body: 'Fix this word',
         anchorQuote: 'brown',
@@ -191,62 +144,54 @@ describe('inline comments', () => {
     expect(create.status).toBe(201)
     expect(create.body.anchorQuote).toBe('brown')
 
-    for (const token of [authorToken, reviewerToken]) {
+    for (const token of [author.token, reviewer.token]) {
       const list = await request(app)
         .get(`/versions/${doc.currentVersion.id}/comments`)
         .set('Cookie', `auth_token=${token}`)
       expect(list.status).toBe(200)
       expect(list.body.items).toHaveLength(1)
       expect(list.body.items[0].body).toBe('Fix this word')
-      expect(list.body.items[0].author.id).toBe(reviewerId)
+      expect(list.body.items[0].author.id).toBe(reviewer.id)
     }
   })
 
   it('rejects a comment from an author (reviewers only)', async () => {
-    const doc = await createDocument('Author cannot comment', 'v1.txt', 'content')
+    const doc = await document('Author cannot comment', 'v1.txt', 'content')
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
       .send({ body: 'nope' })
     expect(res.status).toBe(403)
   })
 
   it('rejects a partial anchor — quote without offsets', async () => {
-    const doc = await createDocument('Partial anchor', 'v1.txt', 'content')
+    const doc = await document('Partial anchor', 'v1.txt', 'content')
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'nope', anchorQuote: 'content' })
     expect(res.status).toBe(400)
   })
 
   it('rejects a comment with no anchor at all — there is no version-level comment', async () => {
-    const doc = await createDocument('No anchor', 'v1.txt', 'content')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('No anchor', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'General feedback on the whole document' })
     expect(res.status).toBe(400)
   })
 
   it('lets a second reviewer in the same category comment on top of the first', async () => {
-    const doc = await createDocument('Multiple reviewers', 'v1.txt', 'The quick brown fox jumps')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('Multiple reviewers', 'v1.txt', 'The quick brown fox jumps')
+    await submitDocument(author.token, doc.id)
 
-    const secondReviewer = await prisma.user.create({
-      data: {
-        email: `comments-reviewer2-${suffix}@example.com`,
-        passwordHash: await bcrypt.hash('password123', 10),
-        role: 'REVIEWER',
-      },
-    })
-    await prisma.categoryMembership.create({ data: { userId: secondReviewer.id, categoryId } })
-    const secondReviewerToken = signAuthToken({ sub: secondReviewer.id, role: 'REVIEWER' })
+    const secondReviewer = await fixtures.actor('REVIEWER', 'reviewer2', categoryId)
 
     for (const [token, quote, start, end] of [
-      [reviewerToken, 'quick', 4, 9],
-      [secondReviewerToken, 'brown', 10, 15],
+      [reviewer.token, 'quick', 4, 9],
+      [secondReviewer.token, 'brown', 10, 15],
     ] as const) {
       const res = await request(app)
         .post(`/versions/${doc.currentVersion.id}/comments`)
@@ -257,27 +202,20 @@ describe('inline comments', () => {
 
     const list = await request(app)
       .get(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(list.body.items).toHaveLength(2)
-
-    await prisma.comment.deleteMany({ where: { versionId: doc.currentVersion.id } })
-    // A comment now also writes a Review row (see create-comment.ts) — must
-    // go before deleting the reviewer, or the FK on Review.reviewerId trips.
-    await prisma.review.deleteMany({ where: { versionId: doc.currentVersion.id } })
-    await prisma.categoryMembership.deleteMany({ where: { userId: secondReviewer.id } })
-    await prisma.user.delete({ where: { id: secondReviewer.id } })
   })
 
   it('rejects commenting on an approved version and creates nothing', async () => {
-    const doc = await createDocument('Approved lock', 'v1.txt', 'content')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('Approved lock', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
     await request(app)
       .post(`/versions/${doc.currentVersion.id}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
 
     const res = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'too late', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
     expect(res.status).toBe(409)
 
@@ -286,18 +224,18 @@ describe('inline comments', () => {
   })
 
   it('rejects commenting on a superseded version and creates nothing', async () => {
-    const doc = await createDocument('Superseded lock', 'v1.txt', 'content')
+    const doc = await document('Superseded lock', 'v1.txt', 'content')
     const v1Id = doc.currentVersion.id
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    await submitDocument(author.token, doc.id)
 
     await request(app)
       .post(`/documents/${doc.id}/versions`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
 
     const res = await request(app)
       .post(`/versions/${v1Id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'too late', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
     expect(res.status).toBe(409)
 
@@ -306,51 +244,51 @@ describe('inline comments', () => {
   })
 
   it('refuses content and comments to a reviewer outside the category — 404', async () => {
-    const doc = await createDocument('Isolated doc', 'v1.txt', 'content')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('Isolated doc', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
 
     const contentRes = await request(app)
       .get(`/versions/${doc.currentVersion.id}/content`)
-      .set('Cookie', `auth_token=${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsider.token}`)
     expect(contentRes.status).toBe(404)
 
     const listRes = await request(app)
       .get(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsider.token}`)
     expect(listRes.status).toBe(404)
 
     const postRes = await request(app)
       .post(`/versions/${doc.currentVersion.id}/comments`)
-      .set('Cookie', `auth_token=${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsider.token}`)
       .send({ body: 'not allowed', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
     expect(postRes.status).toBe(404)
   })
 
   it('keeps comments on the version they were made on — a new revision starts clean', async () => {
-    const doc = await createDocument('Version scoped comments', 'v1.txt', 'content')
-    await request(app).post(`/documents/${doc.id}/submit`).set('Cookie', `auth_token=${authorToken}`)
+    const doc = await document('Version scoped comments', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
     const v1Id = doc.currentVersion.id
 
     await request(app)
       .post(`/versions/${v1Id}/comments`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'comment on v1', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
 
     const upload = await request(app)
       .post(`/documents/${doc.id}/versions`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
     const v2Id = upload.body.id as string
 
     const v1Comments = await request(app)
       .get(`/versions/${v1Id}/comments`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(v1Comments.body.items).toHaveLength(1)
     expect(v1Comments.body.items[0].body).toBe('comment on v1')
 
     const v2Comments = await request(app)
       .get(`/versions/${v2Id}/comments`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
     expect(v2Comments.body.items).toHaveLength(0)
   })
 })

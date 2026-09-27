@@ -1,120 +1,68 @@
-import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.js'
 import { prisma } from '../src/lib/prisma.js'
-import { signAuthToken } from '../src/lib/jwt.js'
+import { createFixtures, type TestActor } from './support/fixtures.js'
+import {
+  approveVersion,
+  createSubmittedDocument,
+  requestChanges,
+  uploadDocument,
+  uploadRevision,
+} from './support/http.js'
 
 describe('review, approval, locking', () => {
-  const suffix = randomUUID().slice(0, 8)
+  const fixtures = createFixtures('Reviews')
+  const { documentIds } = fixtures
 
   let categoryId: string
   let otherCategoryId: string
-  let authorId: string
-  let reviewerId: string
-  let otherReviewerId: string
-  let authorToken: string
-  let reviewerToken: string
-  let otherReviewerToken: string
-  const documentIds: string[] = []
+  let author: TestActor
+  let reviewer: TestActor
+  let otherReviewer: TestActor
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash('password123', 10)
-
-    const category = await prisma.category.create({ data: { name: `Reviews ${suffix}` } })
-    const otherCategory = await prisma.category.create({ data: { name: `Reviews Other ${suffix}` } })
-    categoryId = category.id
-    otherCategoryId = otherCategory.id
-
-    const author = await prisma.user.create({
-      data: { email: `reviews-author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
-    })
-    const reviewer = await prisma.user.create({
-      data: { email: `reviews-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    const otherReviewer = await prisma.user.create({
-      data: { email: `reviews-other-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    authorId = author.id
-    reviewerId = reviewer.id
-    otherReviewerId = otherReviewer.id
-
-    await prisma.categoryMembership.createMany({
-      data: [
-        { userId: authorId, categoryId },
-        { userId: reviewerId, categoryId },
-        { userId: otherReviewerId, categoryId: otherCategoryId },
-      ],
-    })
-
-    authorToken = signAuthToken({ sub: authorId, role: 'AUTHOR' })
-    reviewerToken = signAuthToken({ sub: reviewerId, role: 'REVIEWER' })
-    otherReviewerToken = signAuthToken({ sub: otherReviewerId, role: 'REVIEWER' })
+    categoryId = await fixtures.category('Primary')
+    otherCategoryId = await fixtures.category('Other')
+    author = await fixtures.actor('AUTHOR', 'author', categoryId)
+    reviewer = await fixtures.actor('REVIEWER', 'reviewer', categoryId)
+    otherReviewer = await fixtures.actor('REVIEWER', 'other-reviewer', otherCategoryId)
   })
 
-  afterAll(async () => {
-    await prisma.auditEvent.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.approval.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.review.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.documentVersion.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.document.deleteMany({ where: { id: { in: documentIds } } })
-    await prisma.categoryMembership.deleteMany({
-      where: { categoryId: { in: [categoryId, otherCategoryId] } },
-    })
-    await prisma.user.deleteMany({ where: { id: { in: [authorId, reviewerId, otherReviewerId] } } })
-    await prisma.category.deleteMany({ where: { id: { in: [categoryId, otherCategoryId] } } })
-  })
+  afterAll(fixtures.cleanup)
 
-  async function createSubmittedDocument(title: string) {
-    const create = await request(app)
-      .post('/documents')
-      .set('Cookie', `auth_token=${authorToken}`)
-      .field('title', title)
-      .field('categoryId', categoryId)
-      .attach('file', Buffer.from('v1 content'), 'v1.txt')
-    documentIds.push(create.body.id)
-
-    await request(app)
-      .post(`/documents/${create.body.id}/submit`)
-      .set('Cookie', `auth_token=${authorToken}`)
-
-    return create.body as { id: string; currentVersion: { id: string } }
+  async function submitted(title: string) {
+    const doc = await createSubmittedDocument(author.token, { title, categoryId, content: 'v1 content' })
+    documentIds.push(doc.id)
+    return doc
   }
 
   it('shows only current, submitted versions in the reviewer queue', async () => {
-    const submitted = await createSubmittedDocument('Queue candidate')
+    const submittedDoc = await submitted('Queue candidate')
 
-    const draft = await request(app)
-      .post('/documents')
-      .set('Cookie', `auth_token=${authorToken}`)
-      .field('title', 'Still drafting')
-      .field('categoryId', categoryId)
-      .attach('file', Buffer.from('draft'), 'draft.txt')
+    const draft = await uploadDocument(author.token, { title: 'Still drafting', categoryId, content: 'draft' })
     documentIds.push(draft.body.id)
 
-    const res = await request(app).get('/reviews/queue').set('Cookie', `auth_token=${reviewerToken}`)
+    const res = await request(app).get('/reviews/queue').set('Cookie', `auth_token=${reviewer.token}`)
 
     expect(res.status).toBe(200)
     const ids = res.body.items.map((v: { id: string }) => v.id)
-    expect(ids).toContain(submitted.currentVersion.id)
+    expect(ids).toContain(submittedDoc.currentVersion.id)
     expect(ids).not.toContain(draft.body.currentVersion.id)
 
     const otherCategoryRes = await request(app)
       .get('/reviews/queue')
-      .set('Cookie', `auth_token=${otherReviewerToken}`)
+      .set('Cookie', `auth_token=${otherReviewer.token}`)
     expect(otherCategoryRes.body.items.map((v: { id: string }) => v.id)).not.toContain(
-      submitted.currentVersion.id,
+      submittedDoc.currentVersion.id,
     )
   })
 
   it('approves the current submitted version, writing one approval and one audit row', async () => {
-    const document = await createSubmittedDocument('Approve me')
+    const document = await submitted('Approve me')
     const versionId = document.currentVersion.id
 
-    const res = await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    const res = await approveVersion(reviewer.token, versionId)
     expect(res.status).toBe(204)
 
     const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })
@@ -122,7 +70,7 @@ describe('review, approval, locking', () => {
 
     const approval = await prisma.approval.findUnique({ where: { versionId } })
     expect(approval).not.toBeNull()
-    expect(approval!.approverId).toBe(reviewerId)
+    expect(approval!.approverId).toBe(reviewer.id)
 
     const auditActions = (
       await prisma.auditEvent.findMany({ where: { versionId }, orderBy: { timestamp: 'asc' } })
@@ -131,17 +79,12 @@ describe('review, approval, locking', () => {
   })
 
   it('rejects approving a superseded version, naming the actual current version, and creates nothing', async () => {
-    const document = await createSubmittedDocument('Stale approval')
+    const document = await submitted('Stale approval')
     const staleVersionId = document.currentVersion.id
 
-    await request(app)
-      .post(`/documents/${document.id}/versions`)
-      .set('Cookie', `auth_token=${authorToken}`)
-      .attach('file', Buffer.from('v2 content'), 'v2.txt')
+    await uploadRevision(author.token, document.id)
 
-    const res = await request(app)
-      .post(`/versions/${staleVersionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    const res = await approveVersion(reviewer.token, staleVersionId)
 
     expect(res.status).toBe(409)
     expect(res.body.error).toContain('v2')
@@ -151,48 +94,35 @@ describe('review, approval, locking', () => {
   })
 
   it('rejects request-changes without a comment', async () => {
-    const document = await createSubmittedDocument('No comment')
+    const document = await submitted('No comment')
 
-    const res = await request(app)
-      .post(`/versions/${document.currentVersion.id}/request-changes`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
-      .send({})
+    const res = await requestChanges(reviewer.token, document.currentVersion.id)
 
     expect(res.status).toBe(400)
   })
 
   it('requests changes with a comment, moving the version to CHANGES_REQUESTED', async () => {
-    const document = await createSubmittedDocument('Needs changes')
+    const document = await submitted('Needs changes')
     const versionId = document.currentVersion.id
 
-    const res = await request(app)
-      .post(`/versions/${versionId}/request-changes`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
-      .send({ comment: 'Please fix the typo on page 2' })
+    const res = await requestChanges(reviewer.token, versionId, 'Please fix the typo on page 2')
 
     expect(res.status).toBe(204)
 
     const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })
     expect(version.status).toBe('CHANGES_REQUESTED')
 
-    const review = await prisma.review.findFirst({ where: { versionId, reviewerId } })
+    const review = await prisma.review.findFirst({ where: { versionId, reviewerId: reviewer.id } })
     expect(review?.comment).toBe('Please fix the typo on page 2')
     expect(review?.status).toBe('CHANGES_REQUESTED')
   })
 
   it('allows a second request-changes once the version is already CHANGES_REQUESTED', async () => {
-    const document = await createSubmittedDocument('Needs changes twice')
+    const document = await submitted('Needs changes twice')
     const versionId = document.currentVersion.id
 
-    await request(app)
-      .post(`/versions/${versionId}/request-changes`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
-      .send({ comment: 'First round of feedback' })
-
-    const second = await request(app)
-      .post(`/versions/${versionId}/request-changes`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
-      .send({ comment: 'Second round of feedback' })
+    await requestChanges(reviewer.token, versionId, 'First round of feedback')
+    const second = await requestChanges(reviewer.token, versionId, 'Second round of feedback')
 
     expect(second.status).toBe(204)
 
@@ -204,41 +134,34 @@ describe('review, approval, locking', () => {
   })
 
   it('locks an approved version — a new revision attempt returns 409', async () => {
-    const document = await createSubmittedDocument('Locked after approval')
+    const document = await submitted('Locked after approval')
     const versionId = document.currentVersion.id
 
-    await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    await approveVersion(reviewer.token, versionId)
 
-    const res = await request(app)
-      .post(`/documents/${document.id}/versions`)
-      .set('Cookie', `auth_token=${authorToken}`)
-      .attach('file', Buffer.from('v2 content'), 'v2.txt')
+    const res = await uploadRevision(author.token, document.id)
 
     expect(res.status).toBe(409)
   })
 
   it('downloads a version with its approval record, and refuses a non-member', async () => {
-    const document = await createSubmittedDocument('Downloadable')
+    const document = await submitted('Downloadable')
     const versionId = document.currentVersion.id
 
-    await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    await approveVersion(reviewer.token, versionId)
 
     const res = await request(app)
       .get(`/versions/${versionId}/download`)
-      .set('Cookie', `auth_token=${authorToken}`)
+      .set('Cookie', `auth_token=${author.token}`)
 
     expect(res.status).toBe(200)
     expect(res.text).toBe('v1 content')
     const approvalRecord = JSON.parse(res.headers['x-approval-record']!)
-    expect(approvalRecord.approverId).toBe(reviewerId)
+    expect(approvalRecord.approverId).toBe(reviewer.id)
 
     const refused = await request(app)
       .get(`/versions/${versionId}/download`)
-      .set('Cookie', `auth_token=${otherReviewerToken}`)
+      .set('Cookie', `auth_token=${otherReviewer.token}`)
     expect(refused.status).toBe(404)
   })
 })

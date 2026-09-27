@@ -1,94 +1,46 @@
 import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
-import request from 'supertest'
+import type request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { app } from '../src/app.js'
 import { prisma } from '../src/lib/prisma.js'
-import { signAuthToken } from '../src/lib/jwt.js'
+import { createFixtures, type TestActor } from './support/fixtures.js'
+import { approveVersion, createSubmittedDocument, requestChanges, uploadRevision } from './support/http.js'
 
 // The single most-checked suite in the spec — see versioning-invariants and
 // concurrency-testing skills. Real Postgres, looped, never mocked.
 const ITERATIONS = 50
 
 describe('concurrency races', () => {
-  const suffix = randomUUID().slice(0, 8)
+  const fixtures = createFixtures('Race')
+  const { documentIds } = fixtures
 
   let categoryId: string
   let otherCategoryId: string
-  let authorId: string
-  let reviewerId: string
-  let otherReviewerId: string
-  let authorToken: string
-  let reviewerToken: string
-  let otherReviewerToken: string
-  const documentIds: string[] = []
+  let author: TestActor
+  let reviewer: TestActor
+  let otherReviewer: TestActor
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash('password123', 10)
-
-    const category = await prisma.category.create({ data: { name: `Race ${suffix}` } })
-    const otherCategory = await prisma.category.create({ data: { name: `Race Other ${suffix}` } })
-    categoryId = category.id
-    otherCategoryId = otherCategory.id
-
-    const author = await prisma.user.create({
-      data: { email: `race-author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
-    })
-    const reviewer = await prisma.user.create({
-      data: { email: `race-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    const otherReviewer = await prisma.user.create({
-      data: { email: `race-other-reviewer-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    authorId = author.id
-    reviewerId = reviewer.id
-    otherReviewerId = otherReviewer.id
-
-    await prisma.categoryMembership.createMany({
-      data: [
-        { userId: authorId, categoryId },
-        { userId: reviewerId, categoryId },
-        { userId: otherReviewerId, categoryId: otherCategoryId },
-      ],
-    })
-
-    authorToken = signAuthToken({ sub: authorId, role: 'AUTHOR' })
-    reviewerToken = signAuthToken({ sub: reviewerId, role: 'REVIEWER' })
-    otherReviewerToken = signAuthToken({ sub: otherReviewerId, role: 'REVIEWER' })
+    categoryId = await fixtures.category('Primary')
+    otherCategoryId = await fixtures.category('Other')
+    author = await fixtures.actor('AUTHOR', 'author', categoryId)
+    reviewer = await fixtures.actor('REVIEWER', 'reviewer', categoryId)
+    otherReviewer = await fixtures.actor('REVIEWER', 'other-reviewer', otherCategoryId)
   })
 
-  afterAll(async () => {
-    await prisma.auditEvent.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.approval.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.review.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
-    await prisma.documentVersion.deleteMany({ where: { documentId: { in: documentIds } } })
-    await prisma.document.deleteMany({ where: { id: { in: documentIds } } })
-    await prisma.categoryMembership.deleteMany({
-      where: { categoryId: { in: [categoryId, otherCategoryId] } },
-    })
-    await prisma.user.deleteMany({ where: { id: { in: [authorId, reviewerId, otherReviewerId] } } })
-    await prisma.category.deleteMany({ where: { id: { in: [categoryId, otherCategoryId] } } })
-  })
+  afterAll(fixtures.cleanup)
 
   // Fresh document + current SUBMITTED version + a pending review, for every iteration —
   // reusing one document across iterations would mean each loop tests a different scenario.
   async function seedSubmittedVersion() {
-    const create = await request(app)
-      .post('/documents')
-      .set('Cookie', `auth_token=${authorToken}`)
-      .field('title', `Race ${randomUUID()}`)
-      .field('categoryId', categoryId)
-      .attach('file', Buffer.from('v1 content'), 'v1.txt')
-    const documentId = create.body.id as string
-    const versionId = create.body.currentVersion.id as string
-    documentIds.push(documentId)
+    const doc = await createSubmittedDocument(author.token, {
+      title: `Race ${randomUUID()}`,
+      categoryId,
+      content: 'v1 content',
+    })
+    documentIds.push(doc.id)
+    await prisma.review.create({ data: { versionId: doc.currentVersion.id, reviewerId: reviewer.id, status: 'PENDING' } })
 
-    await request(app)
-      .post(`/documents/${documentId}/submit`)
-      .set('Cookie', `auth_token=${authorToken}`)
-    await prisma.review.create({ data: { versionId, reviewerId, status: 'PENDING' } })
-
-    return { documentId, versionId }
+    return { documentId: doc.id, versionId: doc.currentVersion.id }
   }
 
   function assertNoServerErrors(results: PromiseSettledResult<request.Response>[]) {
@@ -105,13 +57,8 @@ describe('concurrency races', () => {
       const { documentId, versionId } = await seedSubmittedVersion()
 
       const [uploadResult, approveResult] = await Promise.allSettled([
-        request(app)
-          .post(`/documents/${documentId}/versions`)
-          .set('Cookie', `auth_token=${authorToken}`)
-          .attach('file', Buffer.from('v2 content'), 'v2.txt'),
-        request(app)
-          .post(`/versions/${versionId}/approve`)
-          .set('Cookie', `auth_token=${reviewerToken}`),
+        uploadRevision(author.token, documentId),
+        approveVersion(reviewer.token, versionId),
       ])
       assertNoServerErrors([uploadResult, approveResult])
 
@@ -145,8 +92,8 @@ describe('concurrency races', () => {
       const { documentId, versionId } = await seedSubmittedVersion()
 
       const [resA, resB] = await Promise.allSettled([
-        request(app).post(`/versions/${versionId}/approve`).set('Cookie', `auth_token=${reviewerToken}`),
-        request(app).post(`/versions/${versionId}/approve`).set('Cookie', `auth_token=${reviewerToken}`),
+        approveVersion(reviewer.token, versionId),
+        approveVersion(reviewer.token, versionId),
       ])
       assertNoServerErrors([resA, resB])
 
@@ -170,14 +117,8 @@ describe('concurrency races', () => {
       const { documentId, versionId } = await seedSubmittedVersion()
 
       const [uploadResult, changesResult] = await Promise.allSettled([
-        request(app)
-          .post(`/documents/${documentId}/versions`)
-          .set('Cookie', `auth_token=${authorToken}`)
-          .attach('file', Buffer.from('v2 content'), 'v2.txt'),
-        request(app)
-          .post(`/versions/${versionId}/request-changes`)
-          .set('Cookie', `auth_token=${reviewerToken}`)
-          .send({ comment: 'race comment' }),
+        uploadRevision(author.token, documentId),
+        requestChanges(reviewer.token, versionId, 'race comment'),
       ])
       assertNoServerErrors([uploadResult, changesResult])
 
@@ -203,14 +144,10 @@ describe('concurrency races', () => {
   it('rejects approving an already-approved version and creates no second approval', async () => {
     const { versionId } = await seedSubmittedVersion()
 
-    const first = await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    const first = await approveVersion(reviewer.token, versionId)
     expect(first.status).toBe(204)
 
-    const second = await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${reviewerToken}`)
+    const second = await approveVersion(reviewer.token, versionId)
     expect(second.status).toBe(409)
 
     const approvalCount = await prisma.approval.count({ where: { versionId } })
@@ -220,9 +157,7 @@ describe('concurrency races', () => {
   it('refuses a reviewer outside the category from approving — 404, not 409', async () => {
     const { versionId } = await seedSubmittedVersion()
 
-    const res = await request(app)
-      .post(`/versions/${versionId}/approve`)
-      .set('Cookie', `auth_token=${otherReviewerToken}`)
+    const res = await approveVersion(otherReviewer.token, versionId)
     expect(res.status).toBe(404)
 
     const approvalCount = await prisma.approval.count({ where: { versionId } })

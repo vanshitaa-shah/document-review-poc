@@ -1,63 +1,30 @@
-import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.js'
 import { prisma } from '../src/lib/prisma.js'
-import { signAuthToken } from '../src/lib/jwt.js'
+import { createFixtures, type TestActor } from './support/fixtures.js'
 
 describe('category isolation', () => {
-  const suffix = randomUUID().slice(0, 8)
+  const fixtures = createFixtures('Isolation')
 
-  let memberCategoryId: string
-  let outsiderCategoryId: string
-  let authorId: string
-  let memberReviewerId: string
-  let outsiderReviewerId: string
+  let author: TestActor
+  let memberReviewer: TestActor
+  let outsiderReviewer: TestActor
   let documentId: string
-  let memberToken: string
-  let outsiderToken: string
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash('password123', 10)
+    const memberCategoryId = await fixtures.category('Member')
+    const outsiderCategoryId = await fixtures.category('Outsider')
 
-    const memberCategory = await prisma.category.create({
-      data: { name: `Isolation Member ${suffix}` },
-    })
-    const outsiderCategory = await prisma.category.create({
-      data: { name: `Isolation Outsider ${suffix}` },
-    })
-    memberCategoryId = memberCategory.id
-    outsiderCategoryId = outsiderCategory.id
-
-    const author = await prisma.user.create({
-      data: { email: `author-${suffix}@example.com`, passwordHash, role: 'AUTHOR' },
-    })
-    const memberReviewer = await prisma.user.create({
-      data: { email: `member-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    const outsiderReviewer = await prisma.user.create({
-      data: { email: `outsider-${suffix}@example.com`, passwordHash, role: 'REVIEWER' },
-    })
-    authorId = author.id
-    memberReviewerId = memberReviewer.id
-    outsiderReviewerId = outsiderReviewer.id
-
-    await prisma.categoryMembership.create({
-      data: { userId: authorId, categoryId: memberCategoryId },
-    })
-    await prisma.categoryMembership.create({
-      data: { userId: memberReviewerId, categoryId: memberCategoryId },
-    })
-    await prisma.categoryMembership.create({
-      data: { userId: outsiderReviewerId, categoryId: outsiderCategoryId },
-    })
+    author = await fixtures.actor('AUTHOR', 'author', memberCategoryId)
+    memberReviewer = await fixtures.actor('REVIEWER', 'member', memberCategoryId)
+    outsiderReviewer = await fixtures.actor('REVIEWER', 'outsider', outsiderCategoryId)
 
     const document = await prisma.document.create({
       data: {
-        title: `Isolation doc ${suffix}`,
+        title: 'Isolation doc',
         categoryId: memberCategoryId,
-        authorId,
+        authorId: author.id,
         versions: {
           create: {
             versionNumber: 1,
@@ -66,7 +33,7 @@ describe('category isolation', () => {
             mimeType: 'text/plain',
             size: 3,
             sha256: 'x',
-            uploadedById: authorId,
+            uploadedById: author.id,
             isCurrent: true,
             status: 'SUBMITTED',
           },
@@ -74,29 +41,15 @@ describe('category isolation', () => {
       },
     })
     documentId = document.id
-
-    memberToken = signAuthToken({ sub: memberReviewerId, role: 'REVIEWER' })
-    outsiderToken = signAuthToken({ sub: outsiderReviewerId, role: 'REVIEWER' })
+    fixtures.documentIds.push(documentId)
   })
 
-  afterAll(async () => {
-    await prisma.documentVersion.deleteMany({ where: { documentId } })
-    await prisma.document.deleteMany({ where: { id: documentId } })
-    await prisma.categoryMembership.deleteMany({
-      where: { categoryId: { in: [memberCategoryId, outsiderCategoryId] } },
-    })
-    await prisma.user.deleteMany({
-      where: { id: { in: [authorId, memberReviewerId, outsiderReviewerId] } },
-    })
-    await prisma.category.deleteMany({
-      where: { id: { in: [memberCategoryId, outsiderCategoryId] } },
-    })
-  })
+  afterAll(fixtures.cleanup)
 
   it('lets a category member load the document', async () => {
     const res = await request(app)
       .get(`/documents/${documentId}`)
-      .set('Cookie', `auth_token=${memberToken}`)
+      .set('Cookie', `auth_token=${memberReviewer.token}`)
 
     expect(res.status).toBe(200)
     expect(res.body.id).toBe(documentId)
@@ -105,7 +58,7 @@ describe('category isolation', () => {
   it('never loads the row for a non-member, even by direct id', async () => {
     const res = await request(app)
       .get(`/documents/${documentId}`)
-      .set('Cookie', `auth_token=${outsiderToken}`)
+      .set('Cookie', `auth_token=${outsiderReviewer.token}`)
 
     expect(res.status).toBe(404)
   })
