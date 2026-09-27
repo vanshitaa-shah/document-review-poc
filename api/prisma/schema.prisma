@@ -86,7 +86,7 @@ model Document {
 model DocumentVersion {
   id            String        @id @default(uuid())
   documentId    String
-  versionNumber Int
+  versionNumber Int // app-computed (max + 1), not DB-generated — must be set inside the supersession tx
   filePath      String // R2 object key, not a local path — see lib/storage.ts
   fileName      String
   mimeType      String
@@ -94,6 +94,8 @@ model DocumentVersion {
   sha256        String
   uploadedById  String
   uploadedAt    DateTime      @default(now())
+  // Only one isCurrent=true per document — enforced by a partial unique index
+  // hand-written in a migration, not expressible via @@unique.
   isCurrent     Boolean       @default(true)
   status        VersionStatus @default(DRAFT)
 
@@ -127,6 +129,7 @@ model Review {
 
 model Approval {
   id         String   @id @default(uuid())
+  // @unique caps this at one approval per version, ever.
   versionId  String   @unique
   approverId String
   approvedAt DateTime @default(now())
@@ -142,7 +145,7 @@ model Comment {
   body      String
   createdAt DateTime @default(now())
 
-  // Anchor fields are placeholders — real quote/offset anchoring lands in phase 09.
+  // quote/start/end required at the route boundary (see comments.schema.ts);
   anchorQuote  String?
   anchorPrefix String?
   anchorSuffix String?
@@ -158,11 +161,11 @@ model Comment {
 model AuditEvent {
   id         String   @id @default(uuid())
   actorId    String
-  action     String
+  action     String // free text, e.g. "version.approved" — no enum, by convention only
   documentId String
-  versionId  String?
+  versionId  String? // null for document-level events (creation, category change)
   timestamp  DateTime @default(now())
-  metadata   Json?
+  metadata   Json? // action-specific detail, shape varies by action
 
   actor    User             @relation("AuditActor", fields: [actorId], references: [id])
   document Document         @relation(fields: [documentId], references: [id])
