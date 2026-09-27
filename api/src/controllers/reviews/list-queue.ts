@@ -12,21 +12,32 @@ export async function listReviewQueue(req: Request, res: Response) {
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
 
+  // Only current, submitted versions in the reviewer's own categories belong in the queue.
+  const belongsInQueue = {
+    isCurrent: true,
+    status: 'SUBMITTED' as const,
+    ...documentVersionCategoryFilter(userId),
+  }
+
+  // Optional narrow-down from the category filter dropdown.
+  const matchesCategoryFilter = categoryId ? { document: { categoryId } } : null
+
+  // Keyset pagination: strictly older than the cursor, or same instant but a lower id.
+  const isAfterCursor = cursorPage
+    ? {
+        OR: [
+          { uploadedAt: { lt: cursorPage.createdAt } },
+          { uploadedAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
+        ],
+      }
+    : null
+
   const versions = await prisma.documentVersion.findMany({
     where: {
       AND: [
-        { isCurrent: true, status: 'SUBMITTED', ...documentVersionCategoryFilter(userId) },
-        ...(categoryId ? [{ document: { categoryId } }] : []),
-        ...(cursorPage
-          ? [
-              {
-                OR: [
-                  { uploadedAt: { lt: cursorPage.createdAt } },
-                  { uploadedAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
-                ],
-              },
-            ]
-          : []),
+        belongsInQueue,
+        ...(matchesCategoryFilter ? [matchesCategoryFilter] : []),
+        ...(isAfterCursor ? [isAfterCursor] : []),
       ],
     },
     orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
