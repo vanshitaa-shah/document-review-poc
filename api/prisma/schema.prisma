@@ -87,7 +87,7 @@ model DocumentVersion {
   id            String        @id @default(uuid())
   documentId    String
   versionNumber Int // app-computed (max + 1), not DB-generated — must be set inside the supersession tx
-  filePath      String // R2 object key, not a local path — see lib/storage.ts
+  filePath      String // Cloudinary storage key, not a local path — see lib/storage.ts
   fileName      String
   mimeType      String
   size          Int

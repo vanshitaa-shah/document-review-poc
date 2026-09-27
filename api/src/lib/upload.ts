@@ -6,7 +6,7 @@ export const ALLOWED_EXTENSIONS = new Set(['.txt', '.pdf', '.md', '.docx', '.htm
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 // Buffered in memory, not written to local disk — the file goes straight to
-// R2 from the buffer (see uploadedFile.ts). Fine at this size ceiling (10MB).
+// Cloudinary from the buffer (see uploadedFile.ts). Fine at this size ceiling (10MB).
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_UPLOAD_BYTES },

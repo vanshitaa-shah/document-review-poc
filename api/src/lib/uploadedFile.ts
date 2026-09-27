@@ -20,8 +20,9 @@ export interface VersionFileFields {
 
 // The handful of DocumentVersion columns that come straight off the multer
 // file — shared by the version-1 create path and the revision-upload path.
-// `filePath` is the R2 object key, not a local path — it's a generated id,
-// never the user's own filename (see fileName for that).
+// `filePath` is the Cloudinary storage key (see storage.ts's splitKey), not a
+// local path — it's a generated id, never the user's own filename (see
+// fileName for that).
 export async function versionFileFields(file: Express.Multer.File): Promise<VersionFileFields> {
   const key = `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`
   const sha256 = createHash('sha256').update(file.buffer).digest('hex')
