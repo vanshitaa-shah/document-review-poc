@@ -89,7 +89,11 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     expect(queue.status).toBe(200)
     expect(queue.body.items.map((v: { id: string }) => v.id)).toContain(versionId)
 
-    // 5. Reviewer highlights a passage and leaves an inline comment on it.
+    // 5. Reviewer highlights a passage and leaves an inline comment on it —
+    // this is itself a request for changes, so it moves v1 to
+    // CHANGES_REQUESTED the same way the explicit request-changes endpoint
+    // would (see create-comment.ts). It can no longer be approved directly
+    // from here; the author has to revise first.
     const comment = await request(app)
       .post(`/versions/${versionId}/comments`)
       .set('Cookie', reviewerCookie)
@@ -106,32 +110,54 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     expect(comments.body.items).toHaveLength(1)
     expect(comments.body.items[0].body).toBe('Why a fox specifically?')
 
-    // 6. Reviewer approves — a single conditional write against the current version.
-    const approve = await request(app).post(`/versions/${versionId}/approve`).set('Cookie', reviewerCookie)
+    const staleApprove = await request(app).post(`/versions/${versionId}/approve`).set('Cookie', reviewerCookie)
+    expect(staleApprove.status).toBe(409)
+
+    // 6. Author revises to address the feedback — this supersedes v1 and
+    // starts v2 clean (no comments, fresh DRAFT), then submits it.
+    const revise = await request(app)
+      .post(`/documents/${documentId}/versions`)
+      .set('Cookie', authorCookie)
+      .attach('file', Buffer.from('The quick red fox jumps over the lazy dog.'), 'v2.txt')
+    expect(revise.status).toBe(201)
+    const v2Id: string = revise.body.id
+
+    const resubmit = await request(app).post(`/documents/${documentId}/submit`).set('Cookie', authorCookie)
+    expect(resubmit.status).toBe(204)
+
+    // 7. Reviewer approves v2 — a single conditional write against the current version.
+    const approve = await request(app).post(`/versions/${v2Id}/approve`).set('Cookie', reviewerCookie)
     expect(approve.status).toBe(204)
 
-    // 7. Author downloads the approved version and its approval record comes back with it.
-    const download = await request(app).get(`/versions/${versionId}/download`).set('Cookie', authorCookie)
+    // 8. Author downloads the approved version and its approval record comes back with it.
+    const download = await request(app).get(`/versions/${v2Id}/download`).set('Cookie', authorCookie)
     expect(download.status).toBe(200)
-    expect(download.text).toBe('The quick brown fox jumps over the lazy dog.')
+    expect(download.text).toBe('The quick red fox jumps over the lazy dog.')
     const approvalRecord = JSON.parse(download.headers['x-approval-record']!)
     expect(approvalRecord.approverId).toBe(reviewerId)
 
-    // 8. The approved version is locked — a new revision attempt is refused, not silently accepted.
+    // 9. The approved version is locked — a new revision attempt is refused, not silently accepted.
     const lockedRevision = await request(app)
       .post(`/documents/${documentId}/versions`)
       .set('Cookie', authorCookie)
-      .attach('file', Buffer.from('v2 content'), 'v2.txt')
+      .attach('file', Buffer.from('v3 content'), 'v3.txt')
     expect(lockedRevision.status).toBe(409)
 
-    // 9. The audit trail records the whole story in order, actor by actor.
-    // Comments aren't an audited action — the audit table tracks state
-    // transitions (upload, submit, approve, ...), not every read/annotate.
+    // 10. The audit trail records the whole story in order, actor by actor —
+    // including the inline comment, which is itself a CHANGES_REQUESTED event.
     const audit = await request(app).get(`/documents/${documentId}/audit`).set('Cookie', authorCookie)
     expect(audit.status).toBe(200)
     const actions = audit.body.items.map((e: { action: string }) => e.action).reverse()
-    expect(actions).toEqual(['DOCUMENT_UPLOADED', 'SUBMITTED', 'APPROVED'])
-  }, 120000) // 11 sequential requests against Neon — default 30s assumes ~300ms/round-trip, too tight here
+    expect(actions).toEqual([
+      'DOCUMENT_UPLOADED',
+      'SUBMITTED',
+      'CHANGES_REQUESTED',
+      'VERSION_SUPERSEDED',
+      'VERSION_UPLOADED',
+      'SUBMITTED',
+      'APPROVED',
+    ])
+  }, 120000) // 13 sequential requests against Neon — default 30s assumes ~300ms/round-trip, too tight here
 })
 
 function getAuthCookie(res: request.Response): string {

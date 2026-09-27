@@ -160,7 +160,18 @@ export function useDocumentDetail(id: string | undefined) {
     setCommentBusy(true)
     try {
       await api.post(`/versions/${current.id}/comments`, payload)
-      await loadComments()
+      // A comment now also moves the version to CHANGES_REQUESTED (see
+      // create-comment.ts) — reload the document, same as every other
+      // action via runAction, so the status badge and action buttons
+      // reflect it immediately, not just the comment list.
+      await Promise.all([load(), loadComments()])
+    } catch (err) {
+      // On a stale/already-decided version the comment is rejected with a
+      // 409 instead — still refresh (silently, so this reload failing
+      // doesn't clobber the error CommentPopup is about to show) so the UI
+      // shows the true current state, then let CommentPopup surface the error.
+      await load({ silent: true })
+      throw err
     } finally {
       setCommentBusy(false)
     }

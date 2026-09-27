@@ -261,6 +261,9 @@ describe('inline comments', () => {
     expect(list.body.items).toHaveLength(2)
 
     await prisma.comment.deleteMany({ where: { versionId: doc.currentVersion.id } })
+    // A comment now also writes a Review row (see create-comment.ts) — must
+    // go before deleting the reviewer, or the FK on Review.reviewerId trips.
+    await prisma.review.deleteMany({ where: { versionId: doc.currentVersion.id } })
     await prisma.categoryMembership.deleteMany({ where: { userId: secondReviewer.id } })
     await prisma.user.delete({ where: { id: secondReviewer.id } })
   })

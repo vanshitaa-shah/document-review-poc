@@ -72,13 +72,24 @@ function CommentPopup({
   const [body, setBody] = useState('')
   const [error, setError] = useState<unknown>(null)
 
-  const existing = comments.find((c) => c.id === annotation.id)
+  const clicked = comments.find((c) => c.id === annotation.id)
 
-  if (existing) {
+  // Recogito's hit-test resolves a click to one annotation id, but several
+  // comments can share the exact same {start, end} range (two reviewers
+  // highlighting the same passage) — show every comment anchored to that
+  // range, not just the one id recogito happened to report.
+  if (clicked) {
+    const onSameAnchor = comments.filter(
+      (c) => c.anchorStart === clicked.anchorStart && c.anchorEnd === clicked.anchorEnd,
+    )
     return (
-      <div className="w-64 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-lg">
-        <p className="text-gray-800">{existing.body}</p>
-        <p className="mt-2 text-xs text-gray-400">{existing.author.email}</p>
+      <div className="w-64 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-lg">
+        {onSameAnchor.map((c) => (
+          <div key={c.id} className="py-2 first:pt-0 last:pb-0">
+            <p className="text-gray-800">{c.body}</p>
+            <p className="mt-1 text-xs text-gray-400">{c.author.email}</p>
+          </div>
+        ))}
       </div>
     )
   }
