@@ -15,22 +15,32 @@ export async function listDocuments(req: Request, res: Response) {
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
 
+  // Author sees only their own docs; anyone else sees non-draft docs in their categories.
+  const isVisibleToCaller = documentVisibilityFilter(userId, role)
+
+  // Optional narrow-down from the category filter dropdown.
+  const matchesCategoryFilter = categoryId ? { categoryId } : null
+
+  // Optional narrow-down from the status filter dropdown
+  const matchesStatusFilter = status ? { versions: { some: { isCurrent: true, status } } } : null
+
+  // Keyset pagination: strictly older than the cursor, or same instant but a lower id.
+  const isAfterCursor = cursorPage
+    ? {
+        OR: [
+          { updatedAt: { lt: cursorPage.createdAt } },
+          { updatedAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
+        ],
+      }
+    : null
+
   const documents = await prisma.document.findMany({
     where: {
       AND: [
-        documentVisibilityFilter(userId, role),
-        ...(categoryId ? [{ categoryId }] : []),
-        ...(status ? [{ versions: { some: { isCurrent: true, status } } }] : []),
-        ...(cursorPage
-          ? [
-              {
-                OR: [
-                  { updatedAt: { lt: cursorPage.createdAt } },
-                  { updatedAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
-                ],
-              },
-            ]
-          : []),
+        isVisibleToCaller,
+        ...(matchesCategoryFilter ? [matchesCategoryFilter] : []),
+        ...(matchesStatusFilter ? [matchesStatusFilter] : []),
+        ...(isAfterCursor ? [isAfterCursor] : []),
       ],
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
