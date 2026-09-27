@@ -28,19 +28,13 @@ export async function listComments(req: Request, res: Response) {
 
   const comments = await prisma.comment.findMany({
     where: {
-      AND: [
-        { versionId },
-        ...(cursorPage
-          ? [
-              {
-                OR: [
-                  { createdAt: { lt: cursorPage.createdAt } },
-                  { createdAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
-                ],
-              },
-            ]
-          : []),
-      ],
+      versionId,
+      ...(cursorPage && {
+        OR: [
+          { createdAt: { lt: cursorPage.createdAt } },
+          { createdAt: cursorPage.createdAt, id: { lt: cursorPage.id } },
+        ],
+      }),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,

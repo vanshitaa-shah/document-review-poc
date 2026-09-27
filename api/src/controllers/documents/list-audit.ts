@@ -24,19 +24,13 @@ export async function listAudit(req: Request, res: Response) {
 
   const events = await prisma.auditEvent.findMany({
     where: {
-      AND: [
-        { documentId },
-        ...(cursorPage
-          ? [
-              {
-                OR: [
-                  { timestamp: { lt: cursorPage.createdAt } },
-                  { timestamp: cursorPage.createdAt, id: { lt: cursorPage.id } },
-                ],
-              },
-            ]
-          : []),
-      ],
+      documentId,
+      ...(cursorPage && {
+        OR: [
+          { timestamp: { lt: cursorPage.createdAt } },
+          { timestamp: cursorPage.createdAt, id: { lt: cursorPage.id } },
+        ],
+      }),
     },
     orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
     take: limit + 1,
