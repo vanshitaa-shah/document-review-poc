@@ -10,6 +10,36 @@ interface LoginResponse {
   user: AuthUser
 }
 
+const DEMO_ACCOUNT_GROUPS = [
+  {
+    group: 'Author',
+    accounts: [
+      { label: '1', email: 'author1@example.com' },
+      { label: '2', email: 'author2@example.com' },
+      { label: '3', email: 'author3@example.com' },
+    ],
+  },
+  {
+    group: 'Reviewer · Eng',
+    accounts: [
+      { label: '1', email: 'reviewer1@example.com' },
+      { label: '2', email: 'reviewer2@example.com' },
+      { label: '3', email: 'reviewer3@example.com' },
+    ],
+  },
+  {
+    group: 'Reviewer · Mktg',
+    accounts: [
+      { label: '4', email: 'reviewer4@example.com' },
+      { label: '5', email: 'reviewer5@example.com' },
+      { label: '6', email: 'reviewer6@example.com' },
+      { label: '7', email: 'reviewer7@example.com' },
+    ],
+  },
+]
+
+const DEMO_PASSWORD = 'password123'
+
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -87,6 +117,30 @@ export function LoginPage() {
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+
+      <div className="mt-4 w-full max-w-sm space-y-1.5 text-xs text-[#59636e]">
+        <p>Demo accounts (password: {DEMO_PASSWORD})</p>
+        {DEMO_ACCOUNT_GROUPS.map((g) => (
+          <div key={g.group} className="flex items-center gap-1.5">
+            <span className="w-24 shrink-0">{g.group}</span>
+            <div className="flex gap-1">
+              {g.accounts.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(account.email)
+                    setPassword(DEMO_PASSWORD)
+                  }}
+                  className="rounded border border-[#d0d7de] px-1.5 py-0.5 text-[#1f2328] hover:bg-[#f6f8fa]"
+                >
+                  {account.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
