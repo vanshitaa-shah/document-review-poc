@@ -14,6 +14,7 @@ export const VersionStatus = {
   APPROVED: 'APPROVED',
   CHANGES_REQUESTED: 'CHANGES_REQUESTED',
   SUPERSEDED: 'SUPERSEDED',
+  DISCARDED: 'DISCARDED',
 } as const
 export type VersionStatus = (typeof VersionStatus)[keyof typeof VersionStatus]
 

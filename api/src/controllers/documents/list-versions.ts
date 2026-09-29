@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import type { z } from 'zod'
 import { prisma } from '../../lib/prisma.ts'
 import { documentVersionCategoryFilter, documentVisibilityFilter } from '../../lib/categoryAccess.ts'
+import { UNSUBMITTED_STATUSES } from '../../lib/versionVisibility.ts'
 import { getValidatedQuery } from '../../middleware/validate.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { paramsSchema, versionsQuerySchema } from '../../schemas/documents.schema.ts'
@@ -23,8 +24,8 @@ export async function listVersions(req: Request, res: Response) {
     where: {
       documentId,
       ...documentVersionCategoryFilter(userId),
-      // Unsubmitted drafts belong to the author alone.
-      ...(role !== 'AUTHOR' && { status: { not: 'DRAFT' as const } }),
+      // Unsubmitted (draft/discarded) versions belong to the author alone.
+      ...(role !== 'AUTHOR' && { status: { notIn: UNSUBMITTED_STATUSES } }),
       ...(cursor && { versionNumber: { lt: cursor } }),
     },
     orderBy: { versionNumber: 'desc' },

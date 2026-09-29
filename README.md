@@ -66,7 +66,8 @@ never a read, check, then write. See
 **A revision is a hidden draft until the author submits it.** Uploading stores it with
 `isCurrent = false`, so the version under review stays current and visible, comments
 included. A second partial unique index allows one draft per document; uploading again
-replaces it. Reviewers never see drafts; the author sees it as `pendingDraft`.
+replaces it. Replaced drafts become `DISCARDED`. Reviewers never see drafts or discarded drafts, in
+history or in the audit trail; the author sees the live draft as `pendingDraft`.
 
 **Submitting a revision cancels in-flight reviews.** One `SERIALIZABLE` transaction
 demotes the old version, promotes the draft, cancels pending reviews and writes audit

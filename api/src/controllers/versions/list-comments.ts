@@ -7,6 +7,7 @@ import { getValidatedQuery } from '../../middleware/validate.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { commentsQuerySchema } from '../../schemas/comments.schema.ts'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
+import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 
 // All comments on one version — anchors belong to this version alone, never the
 // document, so a superseded version keeps its own comments untouched (see
@@ -20,7 +21,7 @@ export async function listComments(req: Request, res: Response) {
     where: { id: versionId, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || (version.status === 'DRAFT' && version.document.authorId !== userId)) {
+  if (!version || isHiddenFromUser(version, userId)) {
     throw new NotFoundError()
   }
 

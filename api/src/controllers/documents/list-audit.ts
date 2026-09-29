@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { prisma } from '../../lib/prisma.ts'
 import { documentVisibilityFilter } from '../../lib/categoryAccess.ts'
 import { decodeCursor, encodeCursor } from '../../lib/pagination.ts'
+import { UNSUBMITTED_STATUSES } from '../../lib/versionVisibility.ts'
 import { getValidatedQuery } from '../../middleware/validate.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { listQuerySchema, paramsSchema } from '../../schemas/documents.schema.ts'
@@ -22,15 +23,29 @@ export async function listAudit(req: Request, res: Response) {
 
   const cursorPage = cursor ? decodeCursor(cursor) : null
 
+  // Events about an author's unsubmitted draft (its upload, its replacement) are
+  // private to the author — reviewers' trail only covers versions they could see.
+  const hidesUnsubmitted =
+    role === 'AUTHOR'
+      ? null
+      : { OR: [{ versionId: null }, { version: { status: { notIn: UNSUBMITTED_STATUSES } } }] }
+
   const events = await prisma.auditEvent.findMany({
     where: {
       documentId,
-      ...(cursorPage && {
-        OR: [
-          { timestamp: { lt: cursorPage.createdAt } },
-          { timestamp: cursorPage.createdAt, id: { lt: cursorPage.id } },
-        ],
-      }),
+      AND: [
+        ...(hidesUnsubmitted ? [hidesUnsubmitted] : []),
+        ...(cursorPage
+          ? [
+              {
+                OR: [
+                  { timestamp: { lt: cursorPage.createdAt } },
+                  { timestamp: cursorPage.createdAt, id: { lt: cursorPage.id } },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
     take: limit + 1,

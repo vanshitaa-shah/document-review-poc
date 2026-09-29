@@ -31,13 +31,21 @@ export const STATUS_STYLES: Record<VersionStatus, StatusStyle> = {
     className: 'bg-[#f6f8fa] text-[#6e7781] ring-1 ring-inset ring-[#d0d7de]',
     dot: '#afb8c1',
   },
+  DISCARDED: {
+    label: 'Discarded draft',
+    className: 'bg-[#f6f8fa] text-[#6e7781] ring-1 ring-inset ring-[#d0d7de]',
+    dot: '#afb8c1',
+  },
 }
 
 // Drives the status filter dropdown — one {value, label} per status, in the
 // same order STATUS_STYLES declares them.
 export const VERSION_STATUS_OPTIONS: Array<{ value: VersionStatus; label: string }> = (
   Object.keys(STATUS_STYLES) as VersionStatus[]
-).map((value) => ({ value, label: STATUS_STYLES[value].label }))
+)
+  // A discarded draft is never a document's current version, so filtering by it is pointless.
+  .filter((value) => value !== VersionStatus.DISCARDED)
+  .map((value) => ({ value, label: STATUS_STYLES[value].label }))
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   DOCUMENT_UPLOADED: 'Document uploaded',

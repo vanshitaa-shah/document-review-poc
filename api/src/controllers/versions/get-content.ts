@@ -8,6 +8,7 @@ import { NotFoundError } from '../../lib/errors.ts'
 import { sanitizeVersionHtml } from '../../lib/sanitizeHtml.ts'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
 import { getObjectBuffer } from '../../lib/storage.ts'
+import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 
 // Renderable content for the inline-comment view: txt/md come back as plain text
 // (the client renders md with react-markdown), docx is converted to HTML
@@ -25,7 +26,7 @@ export async function getVersionContent(req: Request, res: Response) {
     where: { id, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || (version.status === 'DRAFT' && version.document.authorId !== userId)) {
+  if (!version || isHiddenFromUser(version, userId)) {
     throw new NotFoundError()
   }
 

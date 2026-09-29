@@ -53,7 +53,7 @@ export async function uploadVersion(req: Request, res: Response) {
         if (replacesCurrent) {
           await tx.documentVersion.update({
             where: { id: current.id },
-            data: { isCurrent: false, status: 'SUPERSEDED' },
+            data: { isCurrent: false, status: 'DISCARDED' },
           })
         }
 
@@ -66,7 +66,7 @@ export async function uploadVersion(req: Request, res: Response) {
         if (staleDraft) {
           await tx.documentVersion.update({
             where: { id: staleDraft.id },
-            data: { status: 'SUPERSEDED' },
+            data: { status: 'DISCARDED' },
           })
         }
 

@@ -5,6 +5,7 @@ import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
 import { getObjectStream } from '../../lib/storage.ts'
+import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 
 // Serves the version's file; a DRAFT is only downloadable by its own document's author.
 // The approval record (if any) rides along as a header since the body is the file itself.
@@ -18,7 +19,7 @@ export async function downloadVersion(req: Request, res: Response) {
     where: { id, ...documentVersionCategoryFilter(userId) },
     include: { document: true, approval: true },
   })
-  if (!version || (version.status === 'DRAFT' && version.document.authorId !== userId)) {
+  if (!version || isHiddenFromUser(version, userId)) {
     throw new NotFoundError()
   }
 

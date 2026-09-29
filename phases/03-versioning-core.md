@@ -25,9 +25,11 @@ where two versions look current, and never a path where a review attaches to the
 - `POST /documents/:id/versions` — new file, same document
 - Stored with `isCurrent = false`, status DRAFT, version number = max + 1; current
   version, its reviews and comments are untouched. An earlier pending draft is
-  SUPERSEDED. If the current version is itself an unsubmitted draft, it is replaced.
+  DISCARDED (never SUPERSEDED — it was never live). If the current version is itself an
+  unsubmitted draft, it is replaced the same way.
 - Second partial unique index `one_draft_per_document` (`WHERE status = 'DRAFT'`)
-- Reviewers never see drafts (document, history, content, comments)
+- Reviewers never see drafts or discarded drafts: not in the document, version history,
+  content, comments, download, or the audit events that point at them
 
 **Revision submit — one transaction**
 - `POST /documents/:id/submit` with a pending draft runs a `SERIALIZABLE` transaction

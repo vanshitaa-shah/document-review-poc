@@ -17,6 +17,7 @@ enum VersionStatus {
   APPROVED
   CHANGES_REQUESTED
   SUPERSEDED
+  DISCARDED // an unsubmitted draft replaced by a newer upload — never seen by reviewers
 }
 
 enum ReviewStatus {

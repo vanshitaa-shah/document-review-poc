@@ -9,6 +9,7 @@ import { transactionOptions } from '../../lib/transactionOptions.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { createCommentSchema } from '../../schemas/comments.schema.ts'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
+import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 
 // Any reviewer with category access to this version can add a highlighted
 // comment — not just whoever requested changes on it. A comment is itself
@@ -31,7 +32,7 @@ export async function createComment(req: Request, res: Response) {
     where: { id: versionId, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || (version.status === 'DRAFT' && version.document.authorId !== userId)) {
+  if (!version || isHiddenFromUser(version, userId)) {
     throw new NotFoundError()
   }
 

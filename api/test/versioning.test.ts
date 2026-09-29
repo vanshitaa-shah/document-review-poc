@@ -110,6 +110,44 @@ describe('versioning core', () => {
     expect(content.status).toBe(404)
   })
 
+  it('keeps drafts and discarded drafts out of the reviewer history and audit trail, but not the author\'s', async () => {
+    const doc = await document('Draft privacy')
+    await submitDocument(author.token, doc.id)
+    const discarded = await uploadRevision(author.token, doc.id, { content: 'first attempt' })
+    const draft = await uploadRevision(author.token, doc.id, { content: 'second attempt' })
+
+    const stored = await prisma.documentVersion.findUniqueOrThrow({ where: { id: discarded.body.id } })
+    expect(stored.status).toBe('DISCARDED')
+
+    const get = (path: string, who: TestActor) =>
+      request(app).get(path).set('Cookie', `auth_token=${who.token}`)
+
+    const reviewerAudit = await get(`/documents/${doc.id}/audit`, reviewer)
+    expect(reviewerAudit.body.items.map((e: { action: string }) => e.action)).toEqual(['SUBMITTED', 'DOCUMENT_UPLOADED'])
+    const authorAudit = await get(`/documents/${doc.id}/audit`, author)
+    expect(authorAudit.body.items.length).toBeGreaterThan(reviewerAudit.body.items.length)
+
+    const reviewerHistory = await get(`/documents/${doc.id}/versions`, reviewer)
+    expect(reviewerHistory.body.items.map((v: { versionNumber: number }) => v.versionNumber)).toEqual([1])
+    const authorHistory = await get(`/documents/${doc.id}/versions`, author)
+    expect(authorHistory.body.items.map((v: { versionNumber: number }) => v.versionNumber)).toEqual([3, 2, 1])
+
+    expect((await get(`/versions/${discarded.body.id}/content`, reviewer)).status).toBe(404)
+
+    // Once submitted, the draft becomes visible; the discarded attempt stays hidden.
+    await submitDocument(author.token, doc.id)
+    const afterHistory = await get(`/documents/${doc.id}/versions`, reviewer)
+    expect(afterHistory.body.items.map((v: { id: string }) => v.id)).toEqual([draft.body.id, doc.currentVersion.id])
+    const afterAudit = await get(`/documents/${doc.id}/audit`, reviewer)
+    expect(afterAudit.body.items.map((e: { action: string }) => e.action)).toEqual([
+      'SUBMITTED',
+      'VERSION_SUPERSEDED',
+      'VERSION_UPLOADED',
+      'SUBMITTED',
+      'DOCUMENT_UPLOADED',
+    ])
+  })
+
   it('replaces an earlier pending draft when the author uploads again, and refuses submit with no draft', async () => {
     const doc = await document('Draft replacement')
     await submitDocument(author.token, doc.id)
@@ -147,7 +185,7 @@ describe('versioning core', () => {
     expect(res.body.items.map((v: { versionNumber: number }) => v.versionNumber)).toEqual([2, 1])
     expect(res.body.items[0].status).toBe('DRAFT')
     expect(res.body.items[0].isCurrent).toBe(true)
-    expect(res.body.items[1].status).toBe('SUPERSEDED')
+    expect(res.body.items[1].status).toBe('DISCARDED') // v1 was never submitted
     expect(res.body.items[1].isCurrent).toBe(false)
     expect(res.body.items[0].uploadedBy.id).toBe(author.id)
   })
