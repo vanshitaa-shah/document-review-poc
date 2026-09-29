@@ -17,8 +17,17 @@ export interface VersionRow {
   uploadedBy: UserRef
 }
 
+// The version a row should be compared against: the nearest older version in the list
+// that was ever live. Version numbers can have gaps (a reviewer never sees the author's
+// discarded drafts), so "number - 1" is not reliable. `versions` is newest first.
+export function previousVersionOf(versions: VersionRow[], version: VersionRow): VersionRow | null {
+  const index = versions.findIndex((v) => v.id === version.id)
+  if (index === -1) return null
+  return versions.slice(index + 1).find((v) => v.status !== 'DISCARDED') ?? null
+}
+
 // The version-history table on the History tab: one row per version, with
-// download and (for v2+) a "Compare with previous" action. Pure presentation.
+// download and (when an earlier live version exists) a "Compare with previous" action. Pure presentation.
 export function VersionHistoryTable({
   versions,
   onDownload,
@@ -64,7 +73,7 @@ export function VersionHistoryTable({
                 >
                   Download
                 </button>
-                {v.versionNumber > 1 && (
+                {v.status !== 'DISCARDED' && previousVersionOf(versions, v) && (
                   <button
                     onClick={() => onCompare(v)}
                     className="ml-3 text-xs font-medium text-[#0969da] hover:underline"

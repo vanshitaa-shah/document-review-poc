@@ -5,7 +5,7 @@ import { AppShell } from '../components/AppShell'
 import { DocumentHeader } from '../components/DocumentHeader'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { VersionDiffView } from '../components/VersionDiffView'
-import { VersionHistoryTable, type VersionRow } from '../components/VersionHistoryTable'
+import { VersionHistoryTable, previousVersionOf, type VersionRow } from '../components/VersionHistoryTable'
 import { AuditTrailList, type AuditRow } from '../components/AuditTrailList'
 import { mutedText, sectionHeading } from '../lib/ui'
 
@@ -98,9 +98,7 @@ export function DocumentHistoryPage() {
     )
   }
 
-  const previousVersion = compareVersion
-    ? versions.find((v) => v.versionNumber === compareVersion.versionNumber - 1)
-    : null
+  const previousVersion = compareVersion ? previousVersionOf(versions, compareVersion) : null
 
   return (
     <AppShell>
