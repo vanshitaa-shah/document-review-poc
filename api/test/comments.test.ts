@@ -232,6 +232,7 @@ describe('inline comments', () => {
       .post(`/documents/${doc.id}/versions`)
       .set('Cookie', `auth_token=${author.token}`)
       .attach('file', Buffer.from('v2 content'), 'v2.txt')
+    await submitDocument(author.token, doc.id)
 
     const res = await request(app)
       .post(`/versions/${v1Id}/comments`)

@@ -33,6 +33,7 @@ describe('audit trail', () => {
     await submitDocument(author.token, documentId)
     await requestChanges(reviewer.token, v1VersionId, 'fix the intro')
     await uploadRevision(author.token, documentId)
+    await submitDocument(author.token, documentId)
 
     const res = await request(app)
       .get(`/documents/${documentId}/audit`)
@@ -41,8 +42,9 @@ describe('audit trail', () => {
     expect(res.status).toBe(200)
     const actions = res.body.items.map((e: { action: string }) => e.action)
     expect(actions).toEqual([
-      'VERSION_UPLOADED',
+      'SUBMITTED',
       'VERSION_SUPERSEDED',
+      'VERSION_UPLOADED',
       'CHANGES_REQUESTED',
       'SUBMITTED',
       'DOCUMENT_UPLOADED',

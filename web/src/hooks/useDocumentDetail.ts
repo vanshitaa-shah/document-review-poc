@@ -33,6 +33,8 @@ export interface DocumentDetail {
   authorId: string
   category: CategoryRef
   currentVersion: CurrentVersion | null
+  // Author only: an uploaded but unsubmitted revision. The reviewer keeps seeing currentVersion.
+  pendingDraft: { id: string; versionNumber: number; fileName: string } | null
 }
 
 export interface VersionContent {
@@ -59,8 +61,8 @@ export function useDocumentDetail(id: string | undefined) {
   const [commentBusy, setCommentBusy] = useState(false)
 
   // `silent` is for the refresh after a failed action (e.g. a stale-version 409):
-  // a revision landing mid-review can make the document DRAFT-and-hidden again for
-  // a reviewer (invariant 4), which would 404 here. That must not blow away the
+  // a first-time document can be unavailable to a reviewer (invariant 4), which
+  // would 404 here. That must not blow away the
   // page the actionError is anchored to — so a silent failure just keeps the last
   // known good state on screen instead of replacing it with a bare "Not found".
   const load = useCallback(
@@ -205,6 +207,7 @@ export function useDocumentDetail(id: string | undefined) {
     isAuthor,
     isReviewer,
     current,
+    pendingDraft: document?.pendingDraft ?? null,
     revisionFile,
     setRevisionFile,
     comment,

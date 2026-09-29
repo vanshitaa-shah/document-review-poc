@@ -63,11 +63,13 @@ The same applies to request-changes.
 
 ## 3. Supersession is one SERIALIZABLE transaction
 
-Order matters, and all five steps live or die together:
+Uploading a revision only stores a draft (`isCurrent = false`, at most one per document,
+enforced by the `one_draft_per_document` partial index) — the reviewed version stays
+current. Supersession happens when the author **submits** that draft. Order matters, and all five steps live or die together:
 
 1. Lock the current version
 2. Old version → `isCurrent = false`, status SUPERSEDED
-3. Insert new version → `isCurrent = true`, versionNumber + 1
+3. Promote the draft → `isCurrent = true`, status SUBMITTED (demote first: one current row)
 4. Any PENDING review on the old version → SUPERSEDED
 5. Audit rows for the supersession and the cancelled reviews
 

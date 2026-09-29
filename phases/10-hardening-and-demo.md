@@ -23,7 +23,7 @@ It runs from a clean clone, and you can defend every decision in the walkthrough
 - The decisions and why, written down so they can be read rather than recalled:
   - Full copies per version, not diffs — files are binary, diffing is meaningless,
     and reconstructing version N must be a single file read
-  - Revision upload cancels in-flight reviews — with what happens to a reviewer
+  - Submitting a revision cancels in-flight reviews (uploading only stores a hidden draft) — with what happens to a reviewer
     who clicks approve a moment too late
   - Single-current enforced by a database index, not application code
   - Comments anchored per version, no carry-over

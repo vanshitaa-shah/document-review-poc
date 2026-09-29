@@ -82,8 +82,8 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
     const staleApprove = await request(app).post(`/versions/${versionId}/approve`).set('Cookie', reviewerCookie)
     expect(staleApprove.status).toBe(409)
 
-    // 6. Author revises to address the feedback — this supersedes v1 and
-    // starts v2 clean (no comments, fresh DRAFT), then submits it.
+    // 6. Author revises to address the feedback — v2 is a pending draft (v1
+    // stays current for the reviewer); submitting it supersedes v1 and starts v2 clean.
     const revise = await request(app)
       .post(`/documents/${documentId}/versions`)
       .set('Cookie', authorCookie)
@@ -121,8 +121,8 @@ describe('E2E happy path: login -> upload -> submit -> comment -> approve -> dow
       'DOCUMENT_UPLOADED',
       'SUBMITTED',
       'CHANGES_REQUESTED',
-      'VERSION_SUPERSEDED',
       'VERSION_UPLOADED',
+      'VERSION_SUPERSEDED',
       'SUBMITTED',
       'APPROVED',
     ])

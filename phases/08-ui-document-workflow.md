@@ -34,7 +34,7 @@ The whole workflow is clickable end to end.
 ## Done when
 - An author can go upload → submit → revise entirely through the UI
 - A reviewer can approve or request changes through the UI
-- Two browser windows: reviewer opens a version, author uploads a revision,
+- Two browser windows: reviewer opens a version, author uploads and submits a revision,
   reviewer clicks approve → the 409 is visible on screen
 - Approved documents show the download and the approval record
 

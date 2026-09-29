@@ -5,7 +5,7 @@ description: How to write the race tests this POC is graded on — real Postgres
 
 # Concurrency testing
 
-The sharpest check in this POC: fire a revision upload and an in-flight approval at
+The sharpest check in this POC: fire a revision submit (the supersession) and an in-flight approval at
 almost the same instant, and prove the system never attaches an approval to the wrong
 version and never leaves two versions marked current.
 
@@ -26,11 +26,12 @@ after the first is testing a different scenario than you think.
 ```ts
 it('never approves a superseded version', async () => {
   for (let i = 0; i < 50; i++) {
+    // submitted v1 + pending review + an uploaded (unsubmitted) revision draft
     const { documentId, versionId } = await seedSubmittedDocumentWithPendingReview()
 
-    const [uploadResult, approveResult] = await Promise.allSettled([
-      request(app).post(`/documents/${documentId}/versions`)
-        .set(authorAuth).attach('file', fixture('v2.txt')),
+    const [submitResult, approveResult] = await Promise.allSettled([
+      request(app).post(`/documents/${documentId}/submit`)
+        .set(authorAuth),
       request(app).post(`/versions/${versionId}/approve`)
         .set(reviewerAuth),
     ])
@@ -48,13 +49,13 @@ it('never approves a superseded version', async () => {
     expect(badApprovals).toHaveLength(0)
 
     // 3. the outcome is one of two known-good shapes, never a third
-    expectOneOf(outcomeOf(uploadResult, approveResult), [
-      'upload-won-approval-409',
-      'approval-won-upload-succeeded-as-v2',
+    expectOneOf(outcomeOf(submitResult, approveResult), [
+      'submit-won-approval-409',
+      'approval-won-submit-409',
     ])
 
     // 4. no 500s — a serialization failure must not leak
-    for (const r of [uploadResult, approveResult]) {
+    for (const r of [submitResult, approveResult]) {
       if (r.status === 'fulfilled') expect(r.value.status).not.toBe(500)
     }
 
@@ -76,7 +77,8 @@ the transaction boundary is wrong even if the data happens to look fine this tim
 - **Two simultaneous approvals** on the same version → exactly one `Approval` row.
   A duplicate here means the conditional write is not actually conditional.
 - **Stale version id from a cached page** → 409, and nothing written.
-- **Revision upload during request-changes**, not just during approve.
+- **Revision submit during request-changes**, not just during approve.
+- **Double submit** of the same draft → one 204, one 409, draft promoted once.
 
 ## Serialization failures
 

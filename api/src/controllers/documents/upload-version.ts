@@ -10,9 +10,11 @@ import { transactionOptions } from '../../lib/transactionOptions.ts'
 import { requireFile, versionFileFields } from '../../lib/uploadedFile.ts'
 import { paramsSchema } from '../../schemas/documents.schema.ts'
 
-// Revision upload — one SERIALIZABLE transaction: lock the current version,
-// demote it, insert the new one, cancel any pending reviews on the old one,
-// and audit all of it together. See versioning-invariants skill, rules 1 & 3.
+// Revision upload — stored as a pending draft (isCurrent = false) so the version
+// under review stays current and visible to reviewers until the author submits.
+// The swap to current happens in submit-document.ts. If the current version is
+// itself an unsubmitted draft, nobody has seen it, so it is simply replaced.
+// One SERIALIZABLE transaction; see versioning-invariants skill, rules 1, 3 & 5.
 export async function uploadVersion(req: Request, res: Response) {
   const { id: documentId } = req.params as z.infer<typeof paramsSchema>
   const { id: userId } = req.user!
@@ -46,46 +48,52 @@ export async function uploadVersion(req: Request, res: Response) {
           )
         }
 
-        await tx.documentVersion.update({
-          where: { id: current.id },
-          data: { isCurrent: false, status: 'SUPERSEDED' },
+        const replacesCurrent = current.status === 'DRAFT'
+
+        if (replacesCurrent) {
+          await tx.documentVersion.update({
+            where: { id: current.id },
+            data: { isCurrent: false, status: 'SUPERSEDED' },
+          })
+        }
+
+        // Replace an earlier pending draft — the author's newer upload wins.
+        const staleDraft = replacesCurrent
+          ? null
+          : await tx.documentVersion.findFirst({
+              where: { documentId, isCurrent: false, status: 'DRAFT' },
+            })
+        if (staleDraft) {
+          await tx.documentVersion.update({
+            where: { id: staleDraft.id },
+            data: { status: 'SUPERSEDED' },
+          })
+        }
+
+        const latest = await tx.documentVersion.aggregate({
+          where: { documentId },
+          _max: { versionNumber: true },
         })
 
         const created = await tx.documentVersion.create({
           data: {
             documentId,
-            versionNumber: current.versionNumber + 1,
+            versionNumber: (latest._max.versionNumber ?? current.versionNumber) + 1,
             ...fileFields,
             uploadedById: userId,
-            isCurrent: true,
+            isCurrent: replacesCurrent,
             status: 'DRAFT',
           },
         })
 
-        const pendingReviews = await tx.review.findMany({
-          where: { versionId: current.id, status: 'PENDING' },
-        })
-        if (pendingReviews.length > 0) {
-          await tx.review.updateMany({
-            where: { id: { in: pendingReviews.map((r) => r.id) } },
-            data: { status: 'SUPERSEDED', decidedAt: new Date() },
-          })
-        }
-
-        await recordAuditEvent(tx, {
-          actorId: userId,
-          action: 'VERSION_SUPERSEDED',
-          documentId,
-          versionId: current.id,
-          metadata: { supersededBy: created.id },
-        })
-        for (const review of pendingReviews) {
+        const superseded = replacesCurrent ? current : staleDraft
+        if (superseded) {
           await recordAuditEvent(tx, {
             actorId: userId,
-            action: 'REVIEW_CANCELLED',
+            action: 'VERSION_SUPERSEDED',
             documentId,
-            versionId: current.id,
-            metadata: { reviewId: review.id, reviewerId: review.reviewerId },
+            versionId: superseded.id,
+            metadata: { supersededBy: created.id },
           })
         }
         await recordAuditEvent(tx, {

@@ -4,42 +4,101 @@ import { prisma } from '../../lib/prisma.ts'
 import { documentCategoryFilter } from '../../lib/categoryAccess.ts'
 import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
+import { withSerializableRetry } from '../../lib/dbRetry.ts'
 import { ConflictError, NotFoundError } from '../../lib/errors.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
 import { paramsSchema } from '../../schemas/documents.schema.ts'
 
-// Moves the current version from DRAFT to SUBMITTED, making it visible to reviewers.
+// Submits the author's draft, making it visible to reviewers. First submit just flips
+// the current DRAFT to SUBMITTED. Submitting a revision is the supersession: one
+// SERIALIZABLE transaction that demotes the reviewed version, promotes the draft,
+// cancels pending reviews and audits. See versioning-invariants skill, rules 1, 3 & 5.
 export async function submitDocument(req: Request, res: Response) {
-  const { id } = req.params as z.infer<typeof paramsSchema>
+  const { id: documentId } = req.params as z.infer<typeof paramsSchema>
   const { id: userId } = req.user!
 
   const document = await prisma.document.findFirst({
-    where: { id, authorId: userId, ...documentCategoryFilter(userId) },
+    where: { id: documentId, authorId: userId, ...documentCategoryFilter(userId) },
   })
   if (!document) {
     throw new NotFoundError()
   }
 
-  await prisma.$transaction(async (tx) => {
-    const { count } = await tx.documentVersion.updateMany({
-      where: { documentId: id, isCurrent: true, status: 'DRAFT' },
-      data: { status: 'SUBMITTED' },
-    })
-    if (count === 0) {
-      throw new ConflictError('Current version is not a draft')
-    }
+  await withSerializableRetry(() =>
+    prisma.$transaction(
+      async (tx) => {
+        const [current] = await tx.$queryRaw<Array<{ id: string; versionNumber: number; status: string }>>`
+          SELECT id, "versionNumber", status FROM "DocumentVersion"
+          WHERE "documentId" = ${documentId} AND "isCurrent" = true
+          FOR UPDATE
+        `
+        if (!current) {
+          throw new ConflictError('Document has no current version')
+        }
 
-    const current = await tx.documentVersion.findFirst({
-      where: { documentId: id, isCurrent: true },
-    })
-    await recordAuditEvent(tx, {
-      actorId: userId,
-      action: 'SUBMITTED',
-      documentId: id,
-      versionId: current!.id,
-    })
-    await touchDocument(tx, id)
-  }, transactionOptions)
+        // First submission: the current version is the draft.
+        if (current.status === 'DRAFT') {
+          await tx.documentVersion.update({ where: { id: current.id }, data: { status: 'SUBMITTED' } })
+          await recordAuditEvent(tx, { actorId: userId, action: 'SUBMITTED', documentId, versionId: current.id })
+          await touchDocument(tx, documentId)
+          return
+        }
+
+        if (current.status === 'APPROVED') {
+          throw new ConflictError(
+            `Version v${current.versionNumber} is approved and locked; the document is finished`,
+          )
+        }
+
+        const draft = await tx.documentVersion.findFirst({
+          where: { documentId, isCurrent: false, status: 'DRAFT' },
+        })
+        if (!draft) {
+          throw new ConflictError('No draft revision to submit')
+        }
+
+        // Demote before promoting — the partial unique index allows one current row.
+        await tx.documentVersion.update({
+          where: { id: current.id },
+          data: { isCurrent: false, status: 'SUPERSEDED' },
+        })
+        await tx.documentVersion.update({
+          where: { id: draft.id },
+          data: { isCurrent: true, status: 'SUBMITTED' },
+        })
+
+        const pendingReviews = await tx.review.findMany({
+          where: { versionId: current.id, status: 'PENDING' },
+        })
+        if (pendingReviews.length > 0) {
+          await tx.review.updateMany({
+            where: { id: { in: pendingReviews.map((r) => r.id) } },
+            data: { status: 'SUPERSEDED', decidedAt: new Date() },
+          })
+        }
+
+        await recordAuditEvent(tx, {
+          actorId: userId,
+          action: 'VERSION_SUPERSEDED',
+          documentId,
+          versionId: current.id,
+          metadata: { supersededBy: draft.id },
+        })
+        for (const review of pendingReviews) {
+          await recordAuditEvent(tx, {
+            actorId: userId,
+            action: 'REVIEW_CANCELLED',
+            documentId,
+            versionId: current.id,
+            metadata: { reviewId: review.id, reviewerId: review.reviewerId },
+          })
+        }
+        await recordAuditEvent(tx, { actorId: userId, action: 'SUBMITTED', documentId, versionId: draft.id })
+        await touchDocument(tx, documentId)
+      },
+      { isolationLevel: 'Serializable', ...transactionOptions },
+    ),
+  )
 
   res.status(204).send()
 }

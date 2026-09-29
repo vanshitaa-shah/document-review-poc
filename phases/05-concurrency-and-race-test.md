@@ -13,7 +13,7 @@ and an approval land at the same instant.
 **The race test**
 - Set up: a document with a current version, submitted, with a pending review
 - Fire both at once with `Promise.all`:
-  - a revision upload
+  - submitting a pending revision draft
   - an approval against the version that is current *at the moment the test starts*
 - Run against real Postgres, not mocks — this bug class does not reproduce on mocks
 - Loop it ~50 times; a race that passes once proves nothing

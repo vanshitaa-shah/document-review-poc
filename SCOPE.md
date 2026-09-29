@@ -44,14 +44,16 @@
 **Versioning core — the priority**
 - Document → many Versions, one marked current
 - Single-current enforced by a **Postgres partial unique index**, not just app code
-- Revision upload = one SERIALIZABLE transaction: demote old → insert new → cancel pending
-  reviews on the old → write audit rows
+- Revision upload stores a hidden draft (`isCurrent = false`, one per document, enforced by a
+  second partial unique index); the reviewed version stays current and visible
+- Submitting a revision = one SERIALIZABLE transaction: demote old → promote draft → cancel
+  pending reviews on the old → write audit rows
 - Approval uses a conditional write (`WHERE version_id = ? AND is_current = true`) — a stale
   version ID is rejected at the query
 - **Full copies per version**, not diffs
 
 **Concurrency policy**
-- A revision upload **auto-cancels in-flight reviews** on the superseded version
+- Submitting a revision **auto-cancels in-flight reviews** on the superseded version
 - A reviewer acting on a superseded version gets `409`
 - A cancelled review can never produce an approval record
 
@@ -98,7 +100,7 @@
 - Server errors shown verbatim — the `409` must be visible in the walkthrough
 
 **Tests**
-- **Race test**: revision upload + approval fired together, looped ~50×. Assert one winner,
+- **Race test**: revision submit + approval fired together, looped ~50×. Assert one winner,
   current pointer intact, no approval on a non-current version
 - Category isolation test
 - Stale-version approval rejection test
@@ -135,7 +137,7 @@
 - File types: `.txt`, `.md`, `.docx`, `.html`
 - One approval is sufficient
 - Full copies per version, not diffs
-- Revision upload cancels in-flight reviews
+- Revision submit cancels in-flight reviews; an unsubmitted draft never affects reviewers
 - Inline comments anchored per version, no carry-over
 - Testing: API/integration + concurrency + mocked E2E happy path
 - 12 days, not 10 — inline commenting is the reason
@@ -178,7 +180,7 @@ does not shrink — it's the single most-checked thing in the spec.
   and seed applied. Test it by deleting volumes and images first.
 - Confirm file persistence explicitly: upload, `docker compose restart`, download the same file.
 - `npm test` — full suite against real Postgres, including the looped race test.
-- Stale-approval demoed **through the UI**: reviewer opens a version, author uploads a revision
+- Stale-approval demoed **through the UI**: reviewer opens a version, author uploads and submits a revision
   in another window, reviewer clicks approve → visible `409`.
 - Inline comments: highlight text on version 1, upload version 2, confirm version 2 is clean and
   version 1's comments are still there in history.

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { app } from '../src/app.ts'
 import { prisma } from '../src/lib/prisma.ts'
 import { createFixtures, type TestActor } from './support/fixtures.ts'
-import { createDocument, uploadRevision } from './support/http.ts'
+import { approveVersion, createDocument, submitDocument, uploadRevision } from './support/http.ts'
 
 describe('versioning core', () => {
   const fixtures = createFixtures('Versioning')
@@ -27,23 +27,38 @@ describe('versioning core', () => {
     return doc
   }
 
-  it('supersedes the current version and cancels its pending review in one transaction', async () => {
+  it('keeps the reviewed version current when a revision is uploaded, and supersedes only on submit', async () => {
     const doc = await document('Supersession chain')
     const v1 = doc.currentVersion
+    await submitDocument(author.token, doc.id)
 
     const review = await prisma.review.create({
       data: { versionId: v1.id, reviewerId: reviewer.id, status: 'PENDING' },
     })
 
-    const res = await uploadRevision(author.token, doc.id)
+    const upload = await uploadRevision(author.token, doc.id)
+    expect(upload.status).toBe(201)
+    expect(upload.body.versionNumber).toBe(2)
+    expect(upload.body.isCurrent).toBe(false)
+    expect(upload.body.status).toBe('DRAFT')
 
-    expect(res.status).toBe(201)
-    expect(res.body.versionNumber).toBe(2)
-    expect(res.body.isCurrent).toBe(true)
+    // Reviewer's version and review are untouched by an unsubmitted draft.
+    const stillCurrent = await prisma.documentVersion.findUniqueOrThrow({ where: { id: v1.id } })
+    expect(stillCurrent.isCurrent).toBe(true)
+    expect(stillCurrent.status).toBe('SUBMITTED')
+    const untouchedReview = await prisma.review.findUniqueOrThrow({ where: { id: review.id } })
+    expect(untouchedReview.status).toBe('PENDING')
+
+    const submit = await submitDocument(author.token, doc.id)
+    expect(submit.status).toBe(204)
 
     const oldVersion = await prisma.documentVersion.findUniqueOrThrow({ where: { id: v1.id } })
     expect(oldVersion.isCurrent).toBe(false)
     expect(oldVersion.status).toBe('SUPERSEDED')
+
+    const promoted = await prisma.documentVersion.findUniqueOrThrow({ where: { id: upload.body.id } })
+    expect(promoted.isCurrent).toBe(true)
+    expect(promoted.status).toBe('SUBMITTED')
 
     const cancelledReview = await prisma.review.findUniqueOrThrow({ where: { id: review.id } })
     expect(cancelledReview.status).toBe('SUPERSEDED')
@@ -62,10 +77,61 @@ describe('versioning core', () => {
     ).map((e) => e.action)
     expect(auditActions).toEqual([
       'DOCUMENT_UPLOADED',
+      'SUBMITTED',
+      'VERSION_UPLOADED',
       'VERSION_SUPERSEDED',
       'REVIEW_CANCELLED',
-      'VERSION_UPLOADED',
+      'SUBMITTED',
     ])
+  })
+
+  it('hides a pending draft from reviewers but shows it to the author', async () => {
+    const doc = await document('Draft visibility')
+    await submitDocument(author.token, doc.id)
+    const upload = await uploadRevision(author.token, doc.id)
+
+    const asAuthor = await request(app).get(`/documents/${doc.id}`).set('Cookie', `auth_token=${author.token}`)
+    expect(asAuthor.body.currentVersion.id).toBe(doc.currentVersion.id)
+    expect(asAuthor.body.pendingDraft.id).toBe(upload.body.id)
+
+    const asReviewer = await request(app).get(`/documents/${doc.id}`).set('Cookie', `auth_token=${reviewer.token}`)
+    expect(asReviewer.status).toBe(200)
+    expect(asReviewer.body.currentVersion.id).toBe(doc.currentVersion.id)
+    expect(asReviewer.body.pendingDraft).toBeNull()
+
+    const history = await request(app)
+      .get(`/documents/${doc.id}/versions`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
+    expect(history.body.items.map((v: { versionNumber: number }) => v.versionNumber)).toEqual([1])
+
+    const content = await request(app)
+      .get(`/versions/${upload.body.id}/content`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
+    expect(content.status).toBe(404)
+  })
+
+  it('replaces an earlier pending draft when the author uploads again, and refuses submit with no draft', async () => {
+    const doc = await document('Draft replacement')
+    await submitDocument(author.token, doc.id)
+
+    const noDraft = await submitDocument(author.token, doc.id)
+    expect(noDraft.status).toBe(409)
+
+    const first = await uploadRevision(author.token, doc.id)
+    const second = await uploadRevision(author.token, doc.id)
+    expect(second.body.versionNumber).toBe(first.body.versionNumber + 1)
+
+    const drafts = await prisma.documentVersion.findMany({ where: { documentId: doc.id, status: 'DRAFT' } })
+    expect(drafts.map((d) => d.id)).toEqual([second.body.id])
+  })
+
+  it('does not let a revision be uploaded or submitted over an approved version', async () => {
+    const doc = await document('Approved lock')
+    await submitDocument(author.token, doc.id)
+    await approveVersion(reviewer.token, doc.currentVersion.id)
+
+    const res = await uploadRevision(author.token, doc.id)
+    expect(res.status).toBe(409)
   })
 
   it('returns the full version chain from history, newest first', async () => {
@@ -105,6 +171,23 @@ describe('versioning core', () => {
     })
     expect(currentVersions).toHaveLength(1)
     expect(currentVersions[0]!.versionNumber).toBe(3)
+  })
+
+  it('leaves exactly one pending draft when revision uploads race on a submitted document', async () => {
+    const doc = await document('Concurrent drafts')
+    await submitDocument(author.token, doc.id)
+
+    const [resA, resB] = await Promise.all([
+      uploadRevision(author.token, doc.id, { fileName: 'a.txt', content: 'a' }),
+      uploadRevision(author.token, doc.id, { fileName: 'b.txt', content: 'b' }),
+    ])
+    expect(resA.status).toBe(201)
+    expect(resB.status).toBe(201)
+
+    const drafts = await prisma.documentVersion.findMany({ where: { documentId: doc.id, status: 'DRAFT' } })
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0]!.versionNumber).toBe(3)
+    expect(await prisma.documentVersion.count({ where: { documentId: doc.id, isCurrent: true } })).toBe(1)
   })
 
   it('rejects a second concurrent current version at the database', async () => {

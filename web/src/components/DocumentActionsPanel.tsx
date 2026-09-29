@@ -23,6 +23,7 @@ interface CurrentVersion {
 // Pure presentation — all state and API calls stay in DocumentDetailPage.
 export function DocumentActionsPanel({
   current,
+  pendingDraft,
   isAuthor,
   isReviewer,
   busy,
@@ -38,6 +39,7 @@ export function DocumentActionsPanel({
   onDownload,
 }: {
   current: CurrentVersion | null
+  pendingDraft: { versionNumber: number; fileName: string } | null
   isAuthor: boolean
   isReviewer: boolean
   busy: boolean
@@ -85,6 +87,18 @@ export function DocumentActionsPanel({
               Approve
             </button>
           )}
+        </div>
+      )}
+
+      {isAuthor && pendingDraft && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-[#d8dee4] bg-[#f6f8fa] px-3 py-2 text-sm text-[#1f2328]">
+          <span>
+            Draft v{pendingDraft.versionNumber} ({pendingDraft.fileName}) is not submitted. Reviewers still see v
+            {current?.versionNumber} until you submit it.
+          </span>
+          <button onClick={onSubmit} disabled={busy} className={btnPrimary}>
+            Submit v{pendingDraft.versionNumber} for review
+          </button>
         </div>
       )}
 

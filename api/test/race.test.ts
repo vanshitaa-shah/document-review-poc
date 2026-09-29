@@ -3,7 +3,7 @@ import type request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { prisma } from '../src/lib/prisma.ts'
 import { createFixtures, type TestActor } from './support/fixtures.ts'
-import { approveVersion, createSubmittedDocument, requestChanges, uploadRevision } from './support/http.ts'
+import { approveVersion, createSubmittedDocument, requestChanges, submitDocument, uploadRevision } from './support/http.ts'
 
 // The single most-checked suite in the spec — see versioning-invariants and
 // concurrency-testing skills. Real Postgres, looped, never mocked.
@@ -43,6 +43,16 @@ describe('concurrency races', () => {
     return { documentId: doc.id, versionId: doc.currentVersion.id }
   }
 
+  // Same as above, plus an unsubmitted revision waiting as a pending draft — the state
+  // in which submit (the supersession) races the reviewer's actions on the live version.
+  async function seedSubmittedVersionWithDraft() {
+    const seeded = await seedSubmittedVersion()
+    const upload = await uploadRevision(author.token, seeded.documentId)
+    expect(upload.status).toBe(201)
+
+    return { ...seeded, draftId: upload.body.id as string }
+  }
+
   function assertNoServerErrors(results: PromiseSettledResult<request.Response>[]) {
     for (const result of results) {
       if (result.status === 'rejected') {
@@ -52,15 +62,15 @@ describe('concurrency races', () => {
     }
   }
 
-  it('never approves a superseded version when a revision upload races an approval', async () => {
+  it('never approves a superseded version when submitting a revision races an approval', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
-      const { documentId, versionId } = await seedSubmittedVersion()
+      const { documentId, versionId, draftId } = await seedSubmittedVersionWithDraft()
 
-      const [uploadResult, approveResult] = await Promise.allSettled([
-        uploadRevision(author.token, documentId),
+      const [submitResult, approveResult] = await Promise.allSettled([
+        submitDocument(author.token, documentId),
         approveVersion(reviewer.token, versionId),
       ])
-      assertNoServerErrors([uploadResult, approveResult])
+      assertNoServerErrors([submitResult, approveResult])
 
       // 1. exactly one current version, always
       const currentCount = await prisma.documentVersion.count({
@@ -75,14 +85,18 @@ describe('concurrency races', () => {
       expect(badApprovals).toHaveLength(0)
 
       // 3. exactly one of two known-good shapes, never a third
-      const uploadStatus = (uploadResult as PromiseFulfilledResult<request.Response>).value.status
+      const submitStatus = (submitResult as PromiseFulfilledResult<request.Response>).value.status
       const approveStatus = (approveResult as PromiseFulfilledResult<request.Response>).value.status
-      const uploadWon = uploadStatus === 201 && approveStatus === 409
-      const approveWon = approveStatus === 204 && uploadStatus === 409
-      expect(uploadWon || approveWon).toBe(true)
+      const submitWon = submitStatus === 204 && approveStatus === 409
+      const approveWon = approveStatus === 204 && submitStatus === 409
+      expect(submitWon || approveWon).toBe(true)
 
       const approvalCount = await prisma.approval.count({ where: { versionId } })
       expect(approvalCount).toBe(approveWon ? 1 : 0)
+
+      // 4. the draft became current only if the submit won
+      const draft = await prisma.documentVersion.findUniqueOrThrow({ where: { id: draftId } })
+      expect(draft.isCurrent).toBe(submitWon)
     }
   }, 900000) // 50 iterations against Neon — observed real round-trips here run well past the
   // ~300ms this budget originally assumed, so this needs more headroom, not fewer iterations
@@ -112,15 +126,15 @@ describe('concurrency races', () => {
     }
   }, 900000) // 50 iterations against Neon — see timeout note on the first race test above
 
-  it('never leaves a pending review dangling on a superseded version when upload races request-changes', async () => {
+  it('never leaves a pending review dangling on a superseded version when submitting a revision races request-changes', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
-      const { documentId, versionId } = await seedSubmittedVersion()
+      const { documentId, versionId } = await seedSubmittedVersionWithDraft()
 
-      const [uploadResult, changesResult] = await Promise.allSettled([
-        uploadRevision(author.token, documentId),
+      const [submitResult, changesResult] = await Promise.allSettled([
+        submitDocument(author.token, documentId),
         requestChanges(reviewer.token, versionId, 'race comment'),
       ])
-      assertNoServerErrors([uploadResult, changesResult])
+      assertNoServerErrors([submitResult, changesResult])
 
       const currentCount = await prisma.documentVersion.count({
         where: { documentId, isCurrent: true },
@@ -132,14 +146,35 @@ describe('concurrency races', () => {
       })
       expect(danglingPendingReviews).toHaveLength(0)
 
-      const uploadStatus = (uploadResult as PromiseFulfilledResult<request.Response>).value.status
+      const submitStatus = (submitResult as PromiseFulfilledResult<request.Response>).value.status
       const changesStatus = (changesResult as PromiseFulfilledResult<request.Response>).value.status
       // Request-changes doesn't freeze the document, so both may legitimately succeed
       // (reviewer sends it back, author revises) — only a stale request-changes is 409.
-      expect([201]).toContain(uploadStatus)
+      expect(submitStatus).toBe(204)
       expect([204, 409]).toContain(changesStatus)
     }
   }, 900000) // 50 iterations against Neon — see timeout note on the first race test above
+
+  it('promotes the draft exactly once when the author double-submits a revision', async () => {
+    for (let i = 0; i < ITERATIONS; i++) {
+      const { documentId, versionId, draftId } = await seedSubmittedVersionWithDraft()
+
+      const results = await Promise.allSettled([
+        submitDocument(author.token, documentId),
+        submitDocument(author.token, documentId),
+      ])
+      assertNoServerErrors(results)
+
+      const statuses = results
+        .map((r) => (r as PromiseFulfilledResult<request.Response>).value.status)
+        .sort()
+      expect(statuses).toEqual([204, 409])
+
+      const current = await prisma.documentVersion.findMany({ where: { documentId, isCurrent: true } })
+      expect(current.map((v) => v.id)).toEqual([draftId])
+      expect((await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })).status).toBe('SUPERSEDED')
+    }
+  }, 900000)
 
   it('rejects approving an already-approved version and creates no second approval', async () => {
     const { versionId } = await seedSubmittedVersion()

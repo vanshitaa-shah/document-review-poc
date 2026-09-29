@@ -23,6 +23,8 @@ export async function listVersions(req: Request, res: Response) {
     where: {
       documentId,
       ...documentVersionCategoryFilter(userId),
+      // Unsubmitted drafts belong to the author alone.
+      ...(role !== 'AUTHOR' && { status: { not: 'DRAFT' as const } }),
       ...(cursor && { versionNumber: { lt: cursor } }),
     },
     orderBy: { versionNumber: 'desc' },

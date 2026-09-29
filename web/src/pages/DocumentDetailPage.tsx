@@ -38,6 +38,7 @@ export function DocumentDetailPage() {
 
       <DocumentActionsPanel
         current={current}
+        pendingDraft={detail.pendingDraft}
         isAuthor={detail.isAuthor}
         isReviewer={detail.isReviewer}
         busy={detail.busy}

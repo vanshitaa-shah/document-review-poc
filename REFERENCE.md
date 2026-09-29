@@ -51,7 +51,7 @@ it, so a bug in our code fails loudly instead of corrupting data quietly.
 
 **SERIALIZABLE transaction** — the strictest isolation level. Postgres behaves as if
 concurrent transactions ran one after another. If two would conflict, it aborts one with
-error `40001`, and we retry it. This is what makes the revision-upload race safe.
+error `40001`, and we retry it. This is what makes the revision-submit race safe.
 
 **Conditional write** — putting the condition inside the `UPDATE ... WHERE` instead of
 checking in JavaScript first. There is no gap between checking and writing, so nothing

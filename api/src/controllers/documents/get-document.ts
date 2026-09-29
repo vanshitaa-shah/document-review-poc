@@ -7,6 +7,8 @@ import { NotFoundError } from '../../lib/errors.ts'
 import { paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Fetches one document with its current version, scoped to category + draft visibility.
+// The author also gets `pendingDraft` — an unsubmitted revision that is not yet current.
+// Reviewers never do: they keep seeing the version under review until the author submits.
 export async function getDocument(req: Request, res: Response) {
   const { id } = req.params as z.infer<typeof paramsSchema>
   const { id: userId, role } = req.user!
@@ -26,5 +28,10 @@ export async function getDocument(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  res.json(withCurrentVersion(document))
+  const pendingDraft =
+    role === 'AUTHOR'
+      ? await prisma.documentVersion.findFirst({ where: { documentId: id, isCurrent: false, status: 'DRAFT' } })
+      : null
+
+  res.json({ ...withCurrentVersion(document), pendingDraft })
 }

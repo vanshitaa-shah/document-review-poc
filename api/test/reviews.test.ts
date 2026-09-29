@@ -7,6 +7,7 @@ import {
   approveVersion,
   createSubmittedDocument,
   requestChanges,
+  submitDocument,
   uploadDocument,
   uploadRevision,
 } from './support/http.ts'
@@ -83,6 +84,7 @@ describe('review, approval, locking', () => {
     const staleVersionId = document.currentVersion.id
 
     await uploadRevision(author.token, document.id)
+    await submitDocument(author.token, document.id)
 
     const res = await approveVersion(reviewer.token, staleVersionId)
 

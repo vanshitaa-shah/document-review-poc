@@ -63,11 +63,16 @@ Approval is a single conditional write (`UPDATE ... WHERE id = ? AND isCurrent =
 never a read, check, then write. See
 [versioning-invariants](.claude/skills/versioning-invariants/SKILL.md).
 
-**Uploading a revision cancels in-flight reviews.** One `SERIALIZABLE` transaction
-demotes the old version, inserts the new one, cancels pending reviews and writes audit
+**A revision is a hidden draft until the author submits it.** Uploading stores it with
+`isCurrent = false`, so the version under review stays current and visible, comments
+included. A second partial unique index allows one draft per document; uploading again
+replaces it. Reviewers never see drafts; the author sees it as `pendingDraft`.
+
+**Submitting a revision cancels in-flight reviews.** One `SERIALIZABLE` transaction
+demotes the old version, promotes the draft, cancels pending reviews and writes audit
 rows. If an approval lands after that transaction, the reviewer gets a `409` naming the
-current version (`"Version is no longer current. Current is v3."`). If it lands before,
-the approval stands.
+current version (`"Version is no longer current. Current version is v3."`). If it lands
+before, the approval stands and the submit gets a `409`.
 
 **Comments are anchored per version.** Each comment stores a quote, context and offsets
 against one `versionId`. A new version starts with no comments. Comments are not moved
@@ -89,8 +94,8 @@ The [EXPLAIN ANALYZE output](docs/explain-analyze-version-history.md) shows an
 2. **An approved document is locked:** `POST /documents/:id/versions` on an approved
    document returns `409`.
 3. **Race demo:** run `docker compose exec api npm test -- test/race.test.ts`. Or open two
-   browser windows, upload a revision as the author while the reviewer has the old
-   version open, then approve as the reviewer. The `409` appears on screen.
+   browser windows, upload a revision as the author (the reviewer still sees the old
+   version), submit it, then approve the old version as the reviewer. The `409` appears on screen.
 
 ## Layout
 
