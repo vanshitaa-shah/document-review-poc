@@ -16,7 +16,7 @@ interface AuditEventInput {
   actorId: string
   action: AuditAction
   documentId: string
-  versionId?: string
+  versionId: string
   metadata?: Prisma.InputJsonValue
 }
 

@@ -115,7 +115,7 @@ model Review {
   versionId  String
   reviewerId String
   status     ReviewStatus @default(CHANGES_REQUESTED)
-  comment    String?
+  comment    String
   createdAt  DateTime     @default(now())
 
   version  DocumentVersion @relation(fields: [versionId], references: [id])
@@ -142,12 +142,13 @@ model Comment {
   body      String
   createdAt DateTime @default(now())
 
-  // quote/start/end required at the route boundary (see comments.schema.ts);
-  anchorQuote  String?
+  // Every comment is anchored to a highlighted passage (see comments.schema.ts).
+  // prefix/suffix stay optional: empty when the highlight is at the very start/end.
+  anchorQuote  String
   anchorPrefix String?
   anchorSuffix String?
-  anchorStart  Int?
-  anchorEnd    Int?
+  anchorStart  Int
+  anchorEnd    Int
 
   version DocumentVersion @relation(fields: [versionId], references: [id])
   author  User            @relation("CommentAuthor", fields: [authorId], references: [id])
@@ -160,13 +161,13 @@ model AuditEvent {
   actorId    String
   action     String // free text, e.g. "version.approved" — no enum, by convention only
   documentId String
-  versionId  String? // null for document-level events (creation, category change)
+  versionId  String // every audited action is about a specific version
   timestamp  DateTime @default(now())
   metadata   Json? // action-specific detail, shape varies by action
 
   actor    User             @relation("AuditActor", fields: [actorId], references: [id])
   document Document         @relation(fields: [documentId], references: [id])
-  version  DocumentVersion? @relation(fields: [versionId], references: [id])
+  version  DocumentVersion  @relation(fields: [versionId], references: [id])
 
   @@index([documentId, timestamp])
 }

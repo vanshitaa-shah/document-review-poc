@@ -28,7 +28,7 @@ export async function listAudit(req: Request, res: Response) {
   const hidesUnsubmitted =
     role === 'AUTHOR'
       ? null
-      : { OR: [{ versionId: null }, { version: { status: { notIn: UNSUBMITTED_STATUSES } } }] }
+      : { version: { status: { notIn: UNSUBMITTED_STATUSES } } }
 
   const events = await prisma.auditEvent.findMany({
     where: {
