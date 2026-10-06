@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.ts'
 import { validate } from '../middleware/validate.ts'
 import { upload } from '../lib/upload.ts'
+import { uploadLimiter } from '../lib/rateLimit.ts'
 import {
   createDocument,
   getDocument,
@@ -29,6 +30,7 @@ documentsRouter.post(
   '/',
   requireAuth,
   requireRole('AUTHOR'),
+  uploadLimiter,
   upload.single('file'),
   validate({ body: createDocumentSchema }),
   createDocument,
@@ -51,6 +53,7 @@ documentsRouter.post(
   '/:id/versions',
   requireAuth,
   requireRole('AUTHOR'),
+  uploadLimiter,
   upload.single('file'),
   validate({ params: paramsSchema }),
   uploadVersion,

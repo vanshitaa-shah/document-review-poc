@@ -1,6 +1,8 @@
 import cookieParser from 'cookie-parser'
 import express from 'express'
+import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
+import { globalLimiter } from './lib/rateLimit.ts'
 import { prisma } from './lib/prisma.ts'
 import { httpLoggerOptions } from './lib/logger.ts'
 import { serveWebUi } from './lib/staticUi.ts'
@@ -16,6 +18,8 @@ export const app = express()
 // One log line per request via the child logger pino-http attaches as req.log —
 // see lib/logger.ts for the minimal message format.
 app.use(pinoHttp(httpLoggerOptions))
+app.use(helmet())
+app.use(globalLimiter)
 app.use(express.json())
 app.use(cookieParser())
 
