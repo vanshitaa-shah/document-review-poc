@@ -52,7 +52,6 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   SUBMITTED: 'Submitted for review',
   VERSION_UPLOADED: 'New revision uploaded',
   VERSION_SUPERSEDED: 'Version superseded',
-  REVIEW_CANCELLED: 'Pending review cancelled',
   APPROVED: 'Approved',
   CHANGES_REQUESTED: 'Changes requested',
 }

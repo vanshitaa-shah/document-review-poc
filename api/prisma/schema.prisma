@@ -21,10 +21,7 @@ enum VersionStatus {
 }
 
 enum ReviewStatus {
-  PENDING
-  APPROVED
   CHANGES_REQUESTED
-  SUPERSEDED
 }
 
 model User {
@@ -117,9 +114,8 @@ model Review {
   id         String       @id @default(uuid())
   versionId  String
   reviewerId String
-  status     ReviewStatus @default(PENDING)
+  status     ReviewStatus @default(CHANGES_REQUESTED)
   comment    String?
-  decidedAt  DateTime?
   createdAt  DateTime     @default(now())
 
   version  DocumentVersion @relation(fields: [versionId], references: [id])

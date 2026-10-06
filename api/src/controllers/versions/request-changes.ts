@@ -41,7 +41,6 @@ export async function requestChanges(req: Request, res: Response) {
         reviewerId: userId,
         status: 'CHANGES_REQUESTED',
         comment,
-        decidedAt: new Date(),
       },
     })
     await recordAuditEvent(tx, {

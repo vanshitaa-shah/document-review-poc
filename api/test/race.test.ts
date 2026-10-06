@@ -29,8 +29,8 @@ describe('concurrency races', () => {
 
   afterAll(fixtures.cleanup)
 
-  // Fresh document + current SUBMITTED version + a pending review, for every iteration —
-  // reusing one document across iterations would mean each loop tests a different scenario.
+  // Fresh document + current SUBMITTED version, for every iteration — reusing one
+  // document across iterations would mean each loop tests a different scenario.
   async function seedSubmittedVersion() {
     const doc = await createSubmittedDocument(author.token, {
       title: `Race ${randomUUID()}`,
@@ -38,7 +38,6 @@ describe('concurrency races', () => {
       content: 'v1 content',
     })
     documentIds.push(doc.id)
-    await prisma.review.create({ data: { versionId: doc.currentVersion.id, reviewerId: reviewer.id, status: 'PENDING' } })
 
     return { documentId: doc.id, versionId: doc.currentVersion.id }
   }
@@ -126,7 +125,7 @@ describe('concurrency races', () => {
     }
   }, 900000) // 50 iterations against Neon — see timeout note on the first race test above
 
-  it('never leaves a pending review dangling on a superseded version when submitting a revision races request-changes', async () => {
+  it('resolves to exactly one current version when submitting a revision races request-changes', async () => {
     for (let i = 0; i < ITERATIONS; i++) {
       const { documentId, versionId } = await seedSubmittedVersionWithDraft()
 
@@ -140,11 +139,6 @@ describe('concurrency races', () => {
         where: { documentId, isCurrent: true },
       })
       expect(currentCount).toBe(1)
-
-      const danglingPendingReviews = await prisma.review.findMany({
-        where: { versionId, status: 'PENDING' },
-      })
-      expect(danglingPendingReviews).toHaveLength(0)
 
       const submitStatus = (submitResult as PromiseFulfilledResult<request.Response>).value.status
       const changesStatus = (changesResult as PromiseFulfilledResult<request.Response>).value.status

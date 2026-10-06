@@ -60,7 +60,7 @@ export async function createComment(req: Request, res: Response) {
     })
 
     await tx.review.create({
-      data: { versionId, reviewerId: userId, status: 'CHANGES_REQUESTED', comment: body, decidedAt: new Date() },
+      data: { versionId, reviewerId: userId, status: 'CHANGES_REQUESTED', comment: body },
     })
     await recordAuditEvent(tx, {
       actorId: userId,

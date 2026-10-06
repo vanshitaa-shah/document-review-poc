@@ -32,22 +32,16 @@ describe('versioning core', () => {
     const v1 = doc.currentVersion
     await submitDocument(author.token, doc.id)
 
-    const review = await prisma.review.create({
-      data: { versionId: v1.id, reviewerId: reviewer.id, status: 'PENDING' },
-    })
-
     const upload = await uploadRevision(author.token, doc.id)
     expect(upload.status).toBe(201)
     expect(upload.body.versionNumber).toBe(2)
     expect(upload.body.isCurrent).toBe(false)
     expect(upload.body.status).toBe('DRAFT')
 
-    // Reviewer's version and review are untouched by an unsubmitted draft.
+    // Reviewer's version is untouched by an unsubmitted draft.
     const stillCurrent = await prisma.documentVersion.findUniqueOrThrow({ where: { id: v1.id } })
     expect(stillCurrent.isCurrent).toBe(true)
     expect(stillCurrent.status).toBe('SUBMITTED')
-    const untouchedReview = await prisma.review.findUniqueOrThrow({ where: { id: review.id } })
-    expect(untouchedReview.status).toBe('PENDING')
 
     const submit = await submitDocument(author.token, doc.id)
     expect(submit.status).toBe(204)
@@ -59,10 +53,6 @@ describe('versioning core', () => {
     const promoted = await prisma.documentVersion.findUniqueOrThrow({ where: { id: upload.body.id } })
     expect(promoted.isCurrent).toBe(true)
     expect(promoted.status).toBe('SUBMITTED')
-
-    const cancelledReview = await prisma.review.findUniqueOrThrow({ where: { id: review.id } })
-    expect(cancelledReview.status).toBe('SUPERSEDED')
-    expect(cancelledReview.decidedAt).not.toBeNull()
 
     const currentVersions = await prisma.documentVersion.count({
       where: { documentId: doc.id, isCurrent: true },
@@ -80,7 +70,6 @@ describe('versioning core', () => {
       'SUBMITTED',
       'VERSION_UPLOADED',
       'VERSION_SUPERSEDED',
-      'REVIEW_CANCELLED',
       'SUBMITTED',
     ])
   })

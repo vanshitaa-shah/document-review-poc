@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 
-// The seven actions this project is graded on tracking — see phases/06-audit-pagination-logging.md.
+// The actions this project tracks in the audit trail (see phases/06-audit-pagination-logging.md;
+// REVIEW_CANCELLED was dropped — nothing ever creates a PENDING review for it to cancel).
 // A literal union instead of `string` so a typo'd action name is a type error, not a
 // silent gap in the audit trail.
 export type AuditAction =
@@ -10,7 +11,6 @@ export type AuditAction =
   | 'APPROVED'
   | 'CHANGES_REQUESTED'
   | 'VERSION_SUPERSEDED'
-  | 'REVIEW_CANCELLED'
 
 interface AuditEventInput {
   actorId: string

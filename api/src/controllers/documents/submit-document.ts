@@ -12,7 +12,7 @@ import { paramsSchema } from '../../schemas/documents.schema.ts'
 // Submits the author's draft, making it visible to reviewers. First submit just flips
 // the current DRAFT to SUBMITTED. Submitting a revision is the supersession: one
 // SERIALIZABLE transaction that demotes the reviewed version, promotes the draft,
-// cancels pending reviews and audits. See versioning-invariants skill, rules 1, 3 & 5.
+// and audits. See versioning-invariants skill, rules 1, 3 & 5.
 export async function submitDocument(req: Request, res: Response) {
   const { id: documentId } = req.params as z.infer<typeof paramsSchema>
   const { id: userId } = req.user!
@@ -67,16 +67,6 @@ export async function submitDocument(req: Request, res: Response) {
           data: { isCurrent: true, status: 'SUBMITTED' },
         })
 
-        const pendingReviews = await tx.review.findMany({
-          where: { versionId: current.id, status: 'PENDING' },
-        })
-        if (pendingReviews.length > 0) {
-          await tx.review.updateMany({
-            where: { id: { in: pendingReviews.map((r) => r.id) } },
-            data: { status: 'SUPERSEDED', decidedAt: new Date() },
-          })
-        }
-
         await recordAuditEvent(tx, {
           actorId: userId,
           action: 'VERSION_SUPERSEDED',
@@ -84,15 +74,6 @@ export async function submitDocument(req: Request, res: Response) {
           versionId: current.id,
           metadata: { supersededBy: draft.id },
         })
-        for (const review of pendingReviews) {
-          await recordAuditEvent(tx, {
-            actorId: userId,
-            action: 'REVIEW_CANCELLED',
-            documentId,
-            versionId: current.id,
-            metadata: { reviewId: review.id, reviewerId: review.reviewerId },
-          })
-        }
         await recordAuditEvent(tx, { actorId: userId, action: 'SUBMITTED', documentId, versionId: draft.id })
         await touchDocument(tx, documentId)
       },
