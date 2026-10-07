@@ -6,12 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  AUTHOR
-  REVIEWER
-  ADMIN // creates users only — belongs to no category, so it can never load a document
-}
-
 enum VersionStatus {
   DRAFT
   SUBMITTED
@@ -25,12 +19,22 @@ enum ReviewStatus {
   CHANGES_REQUESTED
 }
 
+// ADMIN, AUTHOR, REVIEWER — seeded, see prisma/seed.ts.
+model Role {
+  id   String @id @default(uuid())
+  name String @unique
+
+  users User[]
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
-  role         UserRole
+  roleId       String
   createdAt    DateTime @default(now())
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   memberships       CategoryMembership[]
   documentsAuthored Document[]           @relation("DocumentAuthor")
@@ -39,6 +43,8 @@ model User {
   approvals         Approval[]           @relation("ApprovalApprover")
   comments          Comment[]            @relation("CommentAuthor")
   auditEvents       AuditEvent[]         @relation("AuditActor")
+
+  @@index([roleId])
 }
 
 model Category {

@@ -1,4 +1,5 @@
-import type { Prisma, UserRole } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
+import type { RoleName } from './roles.ts'
 import { prisma } from './prisma.ts'
 
 /**
@@ -27,7 +28,7 @@ export async function isCategoryMember(userId: string, categoryId: string): Prom
  * - A REVIEWER sees every submitted (or later) document in their categories,
  *   but never a DRAFT — drafts are only visible to the author who owns them.
  */
-export function documentVisibilityFilter(userId: string, role: UserRole): Prisma.DocumentWhereInput {
+export function documentVisibilityFilter(userId: string, role: RoleName): Prisma.DocumentWhereInput {
   if (role === 'AUTHOR') {
     return { ...documentCategoryFilter(userId), authorId: userId }
   }

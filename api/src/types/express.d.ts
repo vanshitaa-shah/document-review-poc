@@ -1,11 +1,11 @@
-import type { UserRole } from '@prisma/client'
+import type { RoleName } from '../lib/roles.ts'
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
         id: string
-        role: UserRole
+        role: RoleName
       }
       // Set by the validate middleware — req.query itself is a read-only
       // computed getter in Express 5 and cannot carry parsed/coerced values.

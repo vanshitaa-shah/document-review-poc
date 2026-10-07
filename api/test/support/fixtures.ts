@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import type { UserRole } from '@prisma/client'
+import type { RoleName } from '../../src/lib/roles.ts'
 import bcrypt from 'bcrypt'
 import { prisma } from '../../src/lib/prisma.ts'
 import { signAuthToken } from '../../src/lib/jwt.ts'
 
 export const TEST_PASSWORD = 'password123'
 
-export type Role = UserRole
+export type Role = RoleName
 
 export interface TestActor {
   id: string
@@ -52,7 +52,7 @@ export function createFixtures(prefix: string): TestFixtures {
   async function actor(role: Role, label: string, categoryId: string): Promise<TestActor> {
     const email = `${prefix.toLowerCase()}-${label}-${suffix}@example.com`
     const user = await prisma.user.create({
-      data: { email, passwordHash: await passwordHash(), role },
+      data: { email, passwordHash: await passwordHash(), role: { connect: { name: role } } },
     })
     userIds.push(user.id)
     await prisma.categoryMembership.create({ data: { userId: user.id, categoryId } })

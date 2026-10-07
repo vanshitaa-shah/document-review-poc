@@ -14,7 +14,7 @@ describe('POST /auth/login', () => {
   beforeAll(async () => {
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10)
     const user = await prisma.user.create({
-      data: { email, passwordHash, role: 'REVIEWER' },
+      data: { email, passwordHash, role: { connect: { name: 'REVIEWER' } } },
     })
     userId = user.id
   })

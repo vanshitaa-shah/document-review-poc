@@ -24,7 +24,7 @@ describe('admin: create users', () => {
     author = await fixtures.actor('AUTHOR', 'author', categoryId)
 
     const admin = await prisma.user.create({
-      data: { email: `admin-${suffix}@example.com`, passwordHash: 'unused', role: 'ADMIN' },
+      data: { email: `admin-${suffix}@example.com`, passwordHash: 'unused', role: { connect: { name: 'ADMIN' } } },
     })
     adminId = admin.id
     adminToken = signAuthToken({ sub: admin.id, role: 'ADMIN' })

@@ -25,14 +25,14 @@ export async function createUser(req: Request, res: Response) {
         data: {
           email,
           passwordHash,
-          role,
+          role: { connect: { name: role } },
           memberships: { create: uniqueCategoryIds.map((categoryId) => ({ categoryId })) },
         },
-        select: { id: true, email: true, role: true, createdAt: true },
+        select: { id: true, email: true, role: { select: { name: true } }, createdAt: true },
       })
     }, transactionOptions)
 
-    res.status(201).json({ ...user, categoryIds: uniqueCategoryIds })
+    res.status(201).json({ ...user, role: user.role.name, categoryIds: uniqueCategoryIds })
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new ConflictError('A user with this email already exists')

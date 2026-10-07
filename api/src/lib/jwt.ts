@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken'
-import type { UserRole } from '@prisma/client'
+import type { RoleName } from './roles.ts'
 
 export interface AuthTokenPayload {
   sub: string
-  role: UserRole
+  role: RoleName
 }
 
 function getSecret(): string {

@@ -9,11 +9,16 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   const passwordHash = await bcrypt.hash('password123', 10)
 
+  // Roles must exist before any user, since User.roleId is required.
+  for (const name of ['ADMIN', 'AUTHOR', 'REVIEWER']) {
+    await prisma.role.upsert({ where: { name }, update: {}, create: { name } })
+  }
+
   // The only way to get an admin — the API can't create one. Same password as the rest of the seed.
   await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
-    create: { email: 'admin@example.com', passwordHash, role: 'ADMIN' },
+    create: { email: 'admin@example.com', passwordHash, role: { connect: { name: 'ADMIN' } } },
   })
 
   const [engineering, marketing] = await Promise.all([
@@ -36,7 +41,7 @@ async function main() {
       prisma.user.upsert({
         where: { email: `author${n}@example.com` },
         update: {},
-        create: { email: `author${n}@example.com`, passwordHash, role: 'AUTHOR' },
+        create: { email: `author${n}@example.com`, passwordHash, role: { connect: { name: 'AUTHOR' } } },
       }),
     ),
   )
@@ -49,7 +54,7 @@ async function main() {
       prisma.user.upsert({
         where: { email: `reviewer${n}@example.com` },
         update: {},
-        create: { email: `reviewer${n}@example.com`, passwordHash, role: 'REVIEWER' },
+        create: { email: `reviewer${n}@example.com`, passwordHash, role: { connect: { name: 'REVIEWER' } } },
       }),
     ),
   )
@@ -58,7 +63,7 @@ async function main() {
       prisma.user.upsert({
         where: { email: `reviewer${n}@example.com` },
         update: {},
-        create: { email: `reviewer${n}@example.com`, passwordHash, role: 'REVIEWER' },
+        create: { email: `reviewer${n}@example.com`, passwordHash, role: { connect: { name: 'REVIEWER' } } },
       }),
     ),
   )
