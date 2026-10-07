@@ -4,6 +4,7 @@ import { api } from '../lib/apiClient'
 import { useAuth, type AuthUser } from '../lib/auth'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { LogoMark } from '../components/Icons'
+import { homeRouteFor } from '../lib/constants'
 import { btnPrimary, input, label } from '../lib/ui'
 
 interface LoginResponse {
@@ -11,6 +12,10 @@ interface LoginResponse {
 }
 
 const DEMO_ACCOUNT_GROUPS = [
+  {
+    group: 'Admin',
+    accounts: [{ label: '1', email: 'admin@example.com' }],
+  },
   {
     group: 'Author',
     accounts: [
@@ -57,7 +62,7 @@ export function LoginPage() {
     try {
       const { user } = await api.post<LoginResponse>('/auth/login', { email, password })
       login(user)
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/documents'
+      const from = (location.state as { from?: Location })?.from?.pathname ?? homeRouteFor(user.role)
       navigate(from, { replace: true })
     } catch (err) {
       setError(err)

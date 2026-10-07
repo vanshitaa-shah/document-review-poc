@@ -5,6 +5,7 @@
 export const Role = {
   AUTHOR: 'AUTHOR',
   REVIEWER: 'REVIEWER',
+  ADMIN: 'ADMIN',
 } as const
 export type Role = (typeof Role)[keyof typeof Role]
 
@@ -31,4 +32,11 @@ export const ROUTES = {
   documentDetail: (id: string) => `/documents/${id}`,
   documentHistory: (id: string) => `/documents/${id}/history`,
   reviewQueue: '/reviews/queue',
+  newUser: '/admin/users/new',
 } as const
+
+// Where each role lands after login and when sent "home". An admin belongs to no
+// category, so the document list would always be empty for it.
+export function homeRouteFor(role: Role | undefined): string {
+  return role === Role.ADMIN ? ROUTES.newUser : ROUTES.documents
+}

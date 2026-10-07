@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { api, setUnauthorizedHandler } from './apiClient'
-import type { Role } from './constants'
+import { homeRouteFor, Role } from './constants'
 
 export interface AuthUser {
   id: string
@@ -103,8 +103,26 @@ export function RequireRole({ role, children }: { role: AuthUser['role']; childr
   const { user } = useAuth()
 
   if (user?.role !== role) {
-    return <Navigate to="/documents" replace />
+    return <Navigate to={homeRouteFor(user?.role)} replace />
   }
 
   return <>{children}</>
+}
+
+// For the document pages: an admin has no categories and no documents, so send it
+// to its own home instead of an always-empty list.
+export function ExcludeAdmin({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+
+  if (user?.role === Role.ADMIN) {
+    return <Navigate to={homeRouteFor(user.role)} replace />
+  }
+
+  return <>{children}</>
+}
+
+// "/" and unknown paths: wherever this user's role calls home.
+export function HomeRedirect() {
+  const { user } = useAuth()
+  return <Navigate to={homeRouteFor(user?.role)} replace />
 }

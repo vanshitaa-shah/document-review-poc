@@ -9,6 +9,7 @@ datasource db {
 enum UserRole {
   AUTHOR
   REVIEWER
+  ADMIN // creates users only — belongs to no category, so it can never load a document
 }
 
 enum VersionStatus {

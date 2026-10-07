@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
@@ -7,6 +8,13 @@ const prisma = new PrismaClient({ adapter })
 
 async function main() {
   const passwordHash = await bcrypt.hash('password123', 10)
+
+  // The only way to get an admin — the API can't create one. Same password as the rest of the seed.
+  await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: { email: 'admin@example.com', passwordHash, role: 'ADMIN' },
+  })
 
   const [engineering, marketing] = await Promise.all([
     prisma.category.upsert({
@@ -78,6 +86,7 @@ async function main() {
     authors: authors.map((a) => a.email),
     engineeringReviewers: engineeringReviewers.map((r) => r.email),
     marketingReviewers: marketingReviewers.map((r) => r.email),
+    admin: 'admin@example.com',
     password: 'password123',
   })
 }

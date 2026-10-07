@@ -1,10 +1,11 @@
-import { Navigate, Route, Routes } from 'react-router'
-import { RequireAuth, RequireRole } from './lib/auth'
+import { Route, Routes } from 'react-router'
+import { ExcludeAdmin, HomeRedirect, RequireAuth, RequireRole } from './lib/auth'
 import { Role, ROUTES } from './lib/constants'
 import { LoginPage } from './pages/LoginPage'
 import { DocumentListPage } from './pages/DocumentListPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { DocumentHistoryPage } from './pages/DocumentHistoryPage'
+import { CreateUserPage } from './pages/CreateUserPage'
 import { NewDocumentPage } from './pages/NewDocumentPage'
 import { ReviewQueuePage } from './pages/ReviewQueuePage'
 
@@ -16,7 +17,9 @@ export function App() {
         path={ROUTES.documents}
         element={
           <RequireAuth>
-            <DocumentListPage />
+            <ExcludeAdmin>
+              <DocumentListPage />
+            </ExcludeAdmin>
           </RequireAuth>
         }
       />
@@ -56,8 +59,18 @@ export function App() {
           </RequireAuth>
         }
       />
-      <Route path="/" element={<Navigate to={ROUTES.documents} replace />} />
-      <Route path="*" element={<Navigate to={ROUTES.documents} replace />} />
+      <Route
+        path={ROUTES.newUser}
+        element={
+          <RequireAuth>
+            <RequireRole role={Role.ADMIN}>
+              <CreateUserPage />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route path="/" element={<HomeRedirect />} />
+      <Route path="*" element={<HomeRedirect />} />
     </Routes>
   )
 }

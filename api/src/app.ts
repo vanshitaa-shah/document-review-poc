@@ -6,6 +6,7 @@ import { globalLimiter } from './lib/rateLimit.ts'
 import { prisma } from './lib/prisma.ts'
 import { httpLoggerOptions } from './lib/logger.ts'
 import { serveWebUi } from './lib/staticUi.ts'
+import { adminRouter } from './routes/admin.ts'
 import { authRouter } from './routes/auth.ts'
 import { categoriesRouter } from './routes/categories.ts'
 import { documentsRouter } from './routes/documents.ts'
@@ -34,6 +35,7 @@ app.get('/health', async (_req, res) => {
 serveWebUi(app)
 
 app.use('/auth', authRouter)
+app.use('/admin', adminRouter)
 app.use('/categories', categoriesRouter)
 app.use('/documents', documentsRouter)
 app.use('/reviews', reviewsRouter)
