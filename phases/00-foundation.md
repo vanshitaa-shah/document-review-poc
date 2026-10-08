@@ -10,7 +10,8 @@ A repo that starts with one command, with the database schema in place.
 - `api/`: TypeScript, Express 5, strict tsconfig, `tsx` for dev reload
 - Install Prisma, point it at Postgres
 - Write the schema:
-  - `User` — email, password hash, role (AUTHOR | REVIEWER)
+  - `Role` — name (ADMIN | AUTHOR | REVIEWER), seeded
+  - `User` — email, password hash, role (FK to `Role`)
   - `Category` — name
   - `CategoryMembership` — user ↔ category (many-to-many)
   - `Document` — title, category, author, created at

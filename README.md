@@ -23,10 +23,15 @@ web app are served at `http://localhost:3000`.
 - `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`: where uploaded
   files are stored. The free tier needs no card. All three values are on the Console dashboard.
 
+Roles (ADMIN, AUTHOR, REVIEWER) live in the `Role` table and are created by the seed script.
+An admin can create AUTHOR and REVIEWER users (`POST /admin/users`); the admin account itself
+comes only from the seed.
+
 Seeded logins (password for all: `password123`):
 
 | Email | Role | Category |
 |---|---|---|
+| `admin@example.com` | ADMIN | — |
 | `author1@example.com` to `author3@example.com` | AUTHOR | — |
 | `reviewer1@example.com` to `reviewer3@example.com` | REVIEWER | Engineering |
 | `reviewer4@example.com` to `reviewer7@example.com` | REVIEWER | Marketing |

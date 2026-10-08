@@ -77,7 +77,7 @@
 - `.txt`, `.md`, `.docx` support highlighting — there is no version-level (generic) comment
 
 **Access control**
-- Category ↔ User membership; a user has one role and can belong to many categories
+- Category ↔ User membership; a user has one role (a row in the `Role` table: ADMIN, AUTHOR or REVIEWER) and can belong to many categories
 - Filtered **in the query predicate**, not a post-fetch check
 - Direct request by document ID without membership → refused
 - Proven by test
@@ -111,8 +111,8 @@
 
 ## Not in v1
 
-- Signup, refresh tokens, password reset — users come from a seed
-- Admin UI for users and categories — seed script only
+- Signup, refresh tokens, password reset — users are created by an admin (or the seed)
+- Admin UI for categories, and for editing or deleting users or roles — categories come from the seed
 - Cloudinary / S3 / MinIO — the Docker volume persists, so it isn't needed
 - Diff-based version storage
 - Re-anchoring comments onto a new version
@@ -130,7 +130,7 @@
 ## Confirmed decisions
 
 - Express, not Next.js
-- Seeded users, JWT login, no signup
+- Seeded users plus admin-created users, JWT login, no signup
 - One role per user, many categories per user
 - Files in a Docker named volume (persists across restarts and rebuilds; only
   `docker compose down -v` wipes it)
