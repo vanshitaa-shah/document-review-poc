@@ -10,6 +10,11 @@ interface Category {
   name: string
 }
 
+interface RoleOption {
+  id: string
+  name: string
+}
+
 interface CreatedUser {
   id: string
   email: string
@@ -29,7 +34,8 @@ export function CreateUserPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<typeof Role.AUTHOR | typeof Role.REVIEWER>(Role.AUTHOR)
+  const [roles, setRoles] = useState<RoleOption[]>([])
+  const [roleId, setRoleId] = useState('')
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [error, setError] = useState<unknown>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -40,10 +46,18 @@ export function CreateUserPage() {
       .get<{ items: Category[] }>('/categories')
       .then((res) => setCategories(res.items))
       .catch(setError)
+
+    void api
+      .get<{ items: RoleOption[] }>('/admin/roles')
+      .then((res) => {
+        setRoles(res.items)
+        setRoleId((current) => current || res.items[0]?.id || '')
+      })
+      .catch(setError)
   }, [])
 
   // A reviewer works in exactly one category for now; an author can span several.
-  const singleCategory = role === Role.REVIEWER
+  const singleCategory = roles.find((r) => r.id === roleId)?.name === Role.REVIEWER
 
   function toggleCategory(id: string) {
     setCategoryIds((current) => {
@@ -52,10 +66,10 @@ export function CreateUserPage() {
     })
   }
 
-  function changeRole(next: typeof role) {
-    setRole(next)
+  function changeRole(nextId: string) {
+    setRoleId(nextId)
     // Switching to reviewer with several ticked: keep just the first.
-    if (next === Role.REVIEWER) setCategoryIds((current) => current.slice(0, 1))
+    if (roles.find((r) => r.id === nextId)?.name === Role.REVIEWER) setCategoryIds((current) => current.slice(0, 1))
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -64,7 +78,7 @@ export function CreateUserPage() {
     setCreated(null)
     setSubmitting(true)
     try {
-      const user = await api.post<CreatedUser>('/admin/users', { email, password, role, categoryIds })
+      const user = await api.post<CreatedUser>('/admin/users', { email, password, roleId, categoryIds })
       // Shown once: the server keeps only a hash, so this is the admin's only chance to pass it on.
       setCreated({ user, password })
       setEmail('')
@@ -145,12 +159,15 @@ export function CreateUserPage() {
             </label>
             <select
               id="role"
-              value={role}
-              onChange={(e) => changeRole(e.target.value as typeof role)}
+              value={roleId}
+              onChange={(e) => changeRole(e.target.value)}
               className={select}
             >
-              <option value={Role.AUTHOR}>Author</option>
-              <option value={Role.REVIEWER}>Reviewer</option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name.charAt(0) + r.name.slice(1).toLowerCase()}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -173,7 +190,7 @@ export function CreateUserPage() {
             ))}
           </fieldset>
 
-          <button type="submit" disabled={submitting || categoryIds.length === 0} className={`${btnPrimary} w-full py-2`}>
+          <button type="submit" disabled={submitting || !roleId || categoryIds.length === 0} className={`${btnPrimary} w-full py-2`}>
             {submitting ? 'Creating…' : 'Create user'}
           </button>
         </form>

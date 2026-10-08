@@ -17,8 +17,10 @@ describe('admin: create users', () => {
   let author: TestActor
   let adminId: string
   let adminToken: string
+  const roleIds = {} as Record<'AUTHOR' | 'REVIEWER' | 'ADMIN', string>
 
   beforeAll(async () => {
+    for (const r of await prisma.role.findMany()) roleIds[r.name as keyof typeof roleIds] = r.id
     categoryId = await fixtures.category('Primary')
     otherCategoryId = await fixtures.category('Other')
     author = await fixtures.actor('AUTHOR', 'author', categoryId)
@@ -54,7 +56,7 @@ describe('admin: create users', () => {
     const res = await createUser(adminToken, {
       email,
       password: 'chosen-password',
-      role: 'REVIEWER',
+      roleId: roleIds.REVIEWER,
       categoryIds: [categoryId],
     })
 
@@ -75,7 +77,7 @@ describe('admin: create users', () => {
     const authorRes = await createUser(adminToken, {
       email: newEmail('multi-author'),
       password: TEST_PASSWORD,
-      role: 'AUTHOR',
+      roleId: roleIds.AUTHOR,
       categoryIds: [categoryId, otherCategoryId],
     })
     expect(authorRes.status).toBe(201)
@@ -85,7 +87,7 @@ describe('admin: create users', () => {
     const reviewerRes = await createUser(adminToken, {
       email: reviewerEmail,
       password: TEST_PASSWORD,
-      role: 'REVIEWER',
+      roleId: roleIds.REVIEWER,
       categoryIds: [categoryId, otherCategoryId],
     })
     expect(reviewerRes.status).toBe(400)
@@ -97,7 +99,7 @@ describe('admin: create users', () => {
     const res = await createUser(adminToken, {
       email: email.toUpperCase(),
       password: TEST_PASSWORD,
-      role: 'AUTHOR',
+      roleId: roleIds.AUTHOR,
       categoryIds: [categoryId],
     })
 
@@ -110,7 +112,7 @@ describe('admin: create users', () => {
 
   it('rejects a duplicate email with 409 and creates nothing extra', async () => {
     const email = newEmail('dup')
-    const body = { email, password: TEST_PASSWORD, role: 'AUTHOR', categoryIds: [categoryId] }
+    const body = { email, password: TEST_PASSWORD, roleId: roleIds.AUTHOR, categoryIds: [categoryId] }
 
     expect((await createUser(adminToken, body)).status).toBe(201)
     const second = await createUser(adminToken, body)
@@ -121,7 +123,7 @@ describe('admin: create users', () => {
 
   it('creates exactly one user when the same email is submitted twice at once', async () => {
     const email = newEmail('concurrent')
-    const body = { email, password: TEST_PASSWORD, role: 'AUTHOR', categoryIds: [categoryId] }
+    const body = { email, password: TEST_PASSWORD, roleId: roleIds.AUTHOR, categoryIds: [categoryId] }
 
     const results = await Promise.all([createUser(adminToken, body), createUser(adminToken, body)])
 
@@ -135,7 +137,7 @@ describe('admin: create users', () => {
     const res = await createUser(adminToken, {
       email,
       password: TEST_PASSWORD,
-      role: 'AUTHOR',
+      roleId: roleIds.AUTHOR,
       categoryIds: [categoryId, randomUUID()],
     })
 
@@ -144,21 +146,40 @@ describe('admin: create users', () => {
   })
 
   it('rejects bad input: short password, no categories, ADMIN role, bad email', async () => {
-    const base = { email: newEmail('invalid'), password: TEST_PASSWORD, role: 'AUTHOR', categoryIds: [categoryId] }
+    const base = { email: newEmail('invalid'), password: TEST_PASSWORD, roleId: roleIds.AUTHOR, categoryIds: [categoryId] }
 
     expect((await createUser(adminToken, { ...base, password: 'short' })).status).toBe(400)
     expect((await createUser(adminToken, { ...base, categoryIds: [] })).status).toBe(400)
-    expect((await createUser(adminToken, { ...base, role: 'ADMIN' })).status).toBe(400)
+    expect((await createUser(adminToken, { ...base, roleId: roleIds.ADMIN })).status).toBe(400)
     expect((await createUser(adminToken, { ...base, email: 'not-an-email' })).status).toBe(400)
     expect(await prisma.user.count({ where: { email: base.email } })).toBe(0)
   })
 
   it('refuses non-admins with 403 and no token with 401', async () => {
-    const body = { email: newEmail('forbidden'), password: TEST_PASSWORD, role: 'AUTHOR', categoryIds: [categoryId] }
+    const body = { email: newEmail('forbidden'), password: TEST_PASSWORD, roleId: roleIds.AUTHOR, categoryIds: [categoryId] }
 
     expect((await createUser(author.token, body)).status).toBe(403)
     expect((await request(app).post('/admin/users').send(body)).status).toBe(401)
     expect(await prisma.user.count({ where: { email: body.email } })).toBe(0)
+  })
+
+  it('lists assignable roles from the Role table for an admin, never ADMIN, and refuses non-admins', async () => {
+    const res = await request(app).get('/admin/roles').set('Cookie', authCookie(adminToken))
+    expect(res.status).toBe(200)
+    expect(res.body.items.map((r: { name: string }) => r.name)).toEqual(['AUTHOR', 'REVIEWER'])
+
+    expect((await request(app).get('/admin/roles').set('Cookie', authCookie(author.token))).status).toBe(403)
+    expect((await request(app).get('/admin/roles')).status).toBe(401)
+  })
+
+  it('rejects a role that is not in the Role table with 400', async () => {
+    const res = await createUser(adminToken, {
+      email: newEmail('norole'),
+      password: 'chosen-password',
+      roleId: randomUUID(),
+      categoryIds: [categoryId],
+    })
+    expect(res.status).toBe(400)
   })
 
   it('lists every category for an admin, but only their own for an author', async () => {
