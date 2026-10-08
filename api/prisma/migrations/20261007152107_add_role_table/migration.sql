@@ -1,12 +1,3 @@
-/*
-  Warnings:
-
-  - Added the required column `roleId` to the `User` table without a default value. This is not possible if the table is not empty.
-
-*/
--- AlterTable
-ALTER TABLE "User" ADD COLUMN     "roleId" TEXT NOT NULL;
-
 -- CreateTable
 CREATE TABLE "Role" (
     "id" TEXT NOT NULL,
@@ -20,6 +11,19 @@ CREATE TABLE "Role" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
+
+-- Data-safe backfill: User may already have rows (production), so roleId is added
+-- nullable, filled from the old "role" enum column, and only then made NOT NULL.
+INSERT INTO "Role" ("id", "name")
+SELECT gen_random_uuid()::text, e.name
+FROM unnest(enum_range(NULL::"UserRole")::text[]) AS e(name);
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "roleId" TEXT;
+
+UPDATE "User" SET "roleId" = r."id" FROM "Role" r WHERE r."name" = "User"."role"::text;
+
+ALTER TABLE "User" ALTER COLUMN "roleId" SET NOT NULL;
 
 -- CreateIndex
 CREATE INDEX "User_roleId_idx" ON "User"("roleId");
