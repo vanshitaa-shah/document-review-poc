@@ -13,10 +13,14 @@ enum VersionStatus {
   CHANGES_REQUESTED
   SUPERSEDED
   DISCARDED // an unsubmitted draft replaced by a newer upload — never seen by reviewers
+
+  @@map("version_status")
 }
 
 enum ReviewStatus {
   CHANGES_REQUESTED
+
+  @@map("review_status")
 }
 
 // ADMIN, AUTHOR, REVIEWER — seeded, see prisma/seed.ts.
@@ -25,14 +29,16 @@ model Role {
   name String @unique
 
   users User[]
+
+  @@map("roles")
 }
 
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String
-  roleId       String
-  createdAt    DateTime @default(now())
+  passwordHash String   @map("password_hash")
+  roleId       String   @map("role_id")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
@@ -45,63 +51,68 @@ model User {
   auditEvents       AuditEvent[]         @relation("AuditActor")
 
   @@index([roleId])
+  @@map("users")
 }
 
 model Category {
   id        String   @id @default(uuid())
   name      String   @unique
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   memberships CategoryMembership[]
   documents   Document[]
+
+  @@map("categories")
 }
 
 model CategoryMembership {
   id         String   @id @default(uuid())
-  userId     String
-  categoryId String
-  createdAt  DateTime @default(now())
+  userId     String   @map("user_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   user     User     @relation(fields: [userId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
 
   @@unique([userId, categoryId])
   @@index([categoryId])
+  @@map("category_memberships")
 }
 
 model Document {
   id         String   @id @default(uuid())
   title      String
-  categoryId String
-  authorId   String
-  createdAt  DateTime @default(now())
+  categoryId String   @map("category_id")
+  authorId   String   @map("author_id")
+  createdAt  DateTime @default(now()) @map("created_at")
   // Touched by every workflow action that changes this document (submit, revision
   // upload, approve, request-changes) — never by comments. Drives the "most
   // recently changed first" default sort on the document list.
-  updatedAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @map("updated_at")
 
-  category Category          @relation(fields: [categoryId], references: [id])
-  author   User              @relation("DocumentAuthor", fields: [authorId], references: [id])
-  versions DocumentVersion[]
+  category    Category          @relation(fields: [categoryId], references: [id])
+  author      User              @relation("DocumentAuthor", fields: [authorId], references: [id])
+  versions    DocumentVersion[]
   auditEvents AuditEvent[]
 
   @@index([categoryId, updatedAt])
+  @@map("documents")
 }
 
 model DocumentVersion {
   id            String        @id @default(uuid())
-  documentId    String
-  versionNumber Int // app-computed (max + 1), not DB-generated — must be set inside the supersession tx
-  filePath      String // Cloudinary storage key, not a local path — see lib/storage.ts
-  fileName      String
-  mimeType      String
+  documentId    String        @map("document_id")
+  versionNumber Int           @map("version_number") // app-computed (max + 1), not DB-generated — must be set inside the supersession tx
+  filePath      String        @map("file_path") // Cloudinary storage key, not a local path — see lib/storage.ts
+  fileName      String        @map("file_name")
+  mimeType      String        @map("mime_type")
   size          Int
   sha256        String
-  uploadedById  String
-  uploadedAt    DateTime      @default(now())
+  uploadedById  String        @map("uploaded_by_id")
+  uploadedAt    DateTime      @default(now()) @map("uploaded_at")
   // Only one isCurrent=true per document — enforced by a partial unique index
   // hand-written in a migration, not expressible via @@unique.
-  isCurrent     Boolean       @default(true)
+  isCurrent     Boolean       @default(true) @map("is_current")
   status        VersionStatus @default(DRAFT)
 
   document   Document @relation(fields: [documentId], references: [id])
@@ -115,66 +126,72 @@ model DocumentVersion {
   @@unique([documentId, versionNumber])
   @@index([documentId, isCurrent])
   @@index([documentId, versionNumber])
+  @@map("document_versions")
 }
 
 model Review {
   id         String       @id @default(uuid())
-  versionId  String
-  reviewerId String
+  versionId  String       @map("version_id")
+  reviewerId String       @map("reviewer_id")
   status     ReviewStatus @default(CHANGES_REQUESTED)
   comment    String
-  createdAt  DateTime     @default(now())
+  createdAt  DateTime     @default(now()) @map("created_at")
 
   version  DocumentVersion @relation(fields: [versionId], references: [id])
   reviewer User            @relation("ReviewReviewer", fields: [reviewerId], references: [id])
 
   @@index([versionId, status])
+  @@map("reviews")
 }
 
 model Approval {
   id         String   @id @default(uuid())
   // @unique caps this at one approval per version, ever.
-  versionId  String   @unique
-  approverId String
-  approvedAt DateTime @default(now())
+  versionId  String   @unique @map("version_id")
+  approverId String   @map("approver_id")
+  approvedAt DateTime @default(now()) @map("approved_at")
 
   version  DocumentVersion @relation(fields: [versionId], references: [id])
   approver User            @relation("ApprovalApprover", fields: [approverId], references: [id])
+
+  @@map("approvals")
 }
 
 model Comment {
   id        String   @id @default(uuid())
-  versionId String
-  authorId  String
+  versionId String   @map("version_id")
+  authorId  String   @map("author_id")
   body      String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Every comment is anchored to a highlighted passage (see comments.schema.ts).
   // prefix/suffix stay optional: empty when the highlight is at the very start/end.
-  anchorQuote  String
-  anchorPrefix String?
-  anchorSuffix String?
-  anchorStart  Int
-  anchorEnd    Int
+  anchorQuote  String  @map("anchor_quote")
+  anchorPrefix String? @map("anchor_prefix")
+  anchorSuffix String? @map("anchor_suffix")
+  anchorStart  Int     @map("anchor_start")
+  anchorEnd    Int     @map("anchor_end")
 
   version DocumentVersion @relation(fields: [versionId], references: [id])
   author  User            @relation("CommentAuthor", fields: [authorId], references: [id])
 
   @@index([versionId])
+  @@map("comments")
 }
 
 model AuditEvent {
   id         String   @id @default(uuid())
-  actorId    String
+  actorId    String   @map("actor_id")
   action     String // free text, e.g. "version.approved" — no enum, by convention only
-  documentId String
-  versionId  String // every audited action is about a specific version
-  timestamp  DateTime @default(now())
+  documentId String   @map("document_id")
+  versionId  String   @map("version_id") // every audited action is about a specific version
+  timestamp  DateTime @default(now()) @map("occurred_at")
   metadata   Json? // action-specific detail, shape varies by action
 
-  actor    User             @relation("AuditActor", fields: [actorId], references: [id])
-  document Document         @relation(fields: [documentId], references: [id])
-  version  DocumentVersion  @relation(fields: [versionId], references: [id])
+  actor    User            @relation("AuditActor", fields: [actorId], references: [id])
+  document Document        @relation(fields: [documentId], references: [id])
+  version  DocumentVersion @relation(fields: [versionId], references: [id])
 
   @@index([documentId, timestamp])
+  @@map("audit_events")
 }

@@ -28,8 +28,8 @@ export async function submitDocument(req: Request, res: Response) {
     prisma.$transaction(
       async (tx) => {
         const [current] = await tx.$queryRaw<Array<{ id: string; versionNumber: number; status: string }>>`
-          SELECT id, "versionNumber", status FROM "DocumentVersion"
-          WHERE "documentId" = ${documentId} AND "isCurrent" = true
+          SELECT id, version_number AS "versionNumber", status FROM document_versions
+          WHERE document_id = ${documentId} AND is_current = true
           FOR UPDATE
         `
         if (!current) {
