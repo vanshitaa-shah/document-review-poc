@@ -42,7 +42,7 @@ export async function createComment(req: Request, res: Response) {
       data: { status: 'CHANGES_REQUESTED' },
     })
     if (count === 0) {
-      await throwStaleVersionConflict(tx, version.documentId)
+      await throwStaleVersionConflict(tx, versionId, version.documentId)
     }
 
     const created = await tx.comment.create({

@@ -32,7 +32,7 @@ export async function requestChanges(req: Request, res: Response) {
       data: { status: 'CHANGES_REQUESTED' },
     })
     if (count === 0) {
-      await throwStaleVersionConflict(tx, version.documentId)
+      await throwStaleVersionConflict(tx, versionId, version.documentId)
     }
 
     await tx.review.create({

@@ -28,7 +28,7 @@ export async function approveVersion(req: Request, res: Response) {
       data: { status: 'APPROVED' },
     })
     if (count === 0) {
-      await throwStaleVersionConflict(tx, version.documentId)
+      await throwStaleVersionConflict(tx, versionId, version.documentId)
     }
 
     await tx.approval.create({ data: { versionId, approverId: userId } })
