@@ -1,7 +1,8 @@
 import { NavLink, useParams } from 'react-router'
 import { StatusBadge } from './StatusBadge'
+import { SyncIcon } from './Icons'
 import { ROUTES } from '../lib/constants'
-import { fainterText, mutedText, pageHeading } from '../lib/ui'
+import { btnDefault, fainterText, mutedText, pageHeading } from '../lib/ui'
 
 function tabClass({ isActive }: { isActive: boolean }) {
   return `border-b-2 px-0.5 py-2 text-sm font-medium transition-colors ${
@@ -23,10 +24,14 @@ export function DocumentHeader({
   title,
   categoryName,
   current,
+  onRefresh,
+  refreshing = false,
 }: {
   title: string
   categoryName: string
   current: CurrentVersionRef | null
+  onRefresh?: () => void
+  refreshing?: boolean
 }) {
   const { id } = useParams<{ id: string }>()
 
@@ -37,12 +42,20 @@ export function DocumentHeader({
           <h1 className={pageHeading}>{title}</h1>
           <p className={`mt-1 ${mutedText}`}>{categoryName}</p>
         </div>
-        {current && (
-          <div className="flex items-center gap-2">
-            <span className={fainterText}>v{current.versionNumber}</span>
-            <StatusBadge status={current.status} />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {current && (
+            <>
+              <span className={fainterText}>v{current.versionNumber}</span>
+              <StatusBadge status={current.status} />
+            </>
+          )}
+          {onRefresh && (
+            <button type="button" className={btnDefault} onClick={onRefresh} disabled={refreshing}>
+              <SyncIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
+        </div>
       </div>
 
       <nav className="mt-4 flex gap-5 border-b border-[#d8dee4]">

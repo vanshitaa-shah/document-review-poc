@@ -34,7 +34,13 @@ export function DocumentDetailPage() {
 
   return (
     <AppShell>
-      <DocumentHeader title={document.title} categoryName={document.category.name} current={current} />
+      <DocumentHeader
+        title={document.title}
+        categoryName={document.category.name}
+        current={current}
+        onRefresh={() => void detail.handleRefresh()}
+        refreshing={detail.refreshing}
+      />
 
       <DocumentActionsPanel
         current={current}

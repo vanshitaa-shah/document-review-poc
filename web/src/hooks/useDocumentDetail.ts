@@ -52,6 +52,7 @@ export function useDocumentDetail(id: string | undefined) {
   const [error, setError] = useState<unknown>(null)
   const [actionError, setActionError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [revisionFile, setRevisionFile] = useState<File | null>(null)
   const [comment, setComment] = useState('')
@@ -125,6 +126,18 @@ export function useDocumentDetail(id: string | undefined) {
       await load({ silent: true })
     } finally {
       setBusy(false)
+    }
+  }
+
+  // Manual refresh: pull the latest document state and comments. Silent for the
+  // document load so a failed refresh keeps the last good page on screen.
+  async function handleRefresh() {
+    setRefreshing(true)
+    setActionError(null)
+    try {
+      await Promise.all([load({ silent: true }), loadComments()])
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -216,6 +229,8 @@ export function useDocumentDetail(id: string | undefined) {
     error,
     actionError,
     busy,
+    refreshing,
+    handleRefresh,
     isAuthor,
     isReviewer,
     current,
