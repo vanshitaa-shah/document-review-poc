@@ -12,7 +12,7 @@ into memory.
 - `AuditEvent` rows written **in the same transaction** as the action they record.
   If the action rolls back, so does its audit row — no drift between state and history.
 - Actions covered: DOCUMENT_UPLOADED, VERSION_UPLOADED, SUBMITTED, APPROVED,
-  CHANGES_REQUESTED, VERSION_SUPERSEDED, REVIEW_CANCELLED
+  CHANGES_REQUESTED, COMMENT_REPLIED, VERSION_SUPERSEDED, REVIEW_CANCELLED
 - Each row: actor, action, document, version, timestamp, metadata JSON
 - `GET /documents/:id/audit` — the trail for one document, category-access enforced
 

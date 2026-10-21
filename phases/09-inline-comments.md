@@ -43,9 +43,26 @@ the highlight against that exact text. Medium-style.
 - Any number of reviewers can highlight and comment on the same version, as long as
   it isn't APPROVED yet
 
+**Author replies**
+- Only the document's author can reply, and only to an existing comment — reviewers
+  raise points, the author responds
+- A reply is a `comments` row with a `parent_id`; it copies its parent's anchor, so
+  anchors stay required. Replying to a reply attaches to the root comment — threads are
+  one level deep
+- A reply is discussion only: it never changes version status and writes no `Review`
+  row, so it cannot race with approve, request-changes or supersession
+- The `COMMENT_REPLIED` audit row is written in the same transaction as the reply
+- Replies are allowed on any version status, including APPROVED and superseded
+- UI: clicking a highlight shows each comment with its replies and, for the author, its
+  own reply box (several reviewers can share one highlighted range); clicking outside the
+  popup closes it
+
 **Endpoints**
 - `POST /versions/:id/comments` — body + anchor (anchor is required, not optional)
-- `GET /versions/:id/comments` — all comments for that version
+- `POST /versions/:id/comments/:commentId/replies` — body only; author-only, `403` for
+  anyone else, `404` outside the category
+- `GET /versions/:id/comments` — all comments for that version, replies included (each
+  carries `parentId`)
 - Category access enforced on both
 - Reject comments on an APPROVED version (it's locked) or a SUPERSEDED one
   (it's no longer the version being reviewed) — existing comments on a
@@ -57,6 +74,8 @@ the highlight against that exact text. Medium-style.
 - Author and reviewer both see the same highlights
 - Uploading a new version leaves it with no comments, and the old version keeps its own
 - Commenting on an approved version returns 409
+- The author replies to each reviewer's comment separately, and the version status does
+  not change; a reviewer's reply attempt returns 403
 
 ## If time runs short
 Narrow to `.txt` and `.md` only, and drop the docx conversion. Do not take the time
@@ -64,4 +83,4 @@ out of phase 05.
 
 ## Not in this phase
 - Re-anchoring comments onto a new version
-- Replies, threads, mentions, resolve/unresolve
+- Mentions, resolve/unresolve, reviewer follow-ups inside a thread, deeper threads
