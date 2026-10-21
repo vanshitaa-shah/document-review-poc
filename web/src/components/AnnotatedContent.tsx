@@ -6,12 +6,16 @@ import {
   type RecogitoTextAnnotator,
   type TextAnnotation,
 } from '@recogito/react-text-annotator'
+import { Avatar } from './Avatar'
 import { ErrorMessage } from './ErrorMessage'
+import { formatDateTime } from '../lib/format'
+import { fainterText } from '../lib/ui'
 
 export interface StoredComment {
   id: string
   parentId: string | null
   body: string
+  createdAt: string
   anchorQuote: string | null
   anchorStart: number | null
   anchorEnd: number | null
@@ -55,7 +59,7 @@ function SyncAnnotations({ comments }: { comments: StoredComment[] }) {
   return null
 }
 
-// One reply input per comment, so each reviewer is answered individually.
+// Collapsed to a "Reply" link until clicked, so ten comments don't mean ten open textareas.
 function ReplyBox({
   commentId,
   busy,
@@ -65,6 +69,7 @@ function ReplyBox({
   busy: boolean
   onReply: (commentId: string, body: string) => Promise<void>
 }) {
+  const [open, setOpen] = useState(false)
   const [body, setBody] = useState('')
   const [error, setError] = useState<unknown>(null)
 
@@ -74,28 +79,104 @@ function ReplyBox({
     try {
       await onReply(commentId, body)
       setBody('')
+      setOpen(false)
     } catch (err) {
       setError(err)
     }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="mt-1 text-xs font-medium text-blue-600 hover:underline">
+        Reply
+      </button>
+    )
   }
 
   return (
     <div className="mt-2">
       <ErrorMessage error={error} />
       <textarea
+        autoFocus
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Reply…"
+        placeholder="Write a reply…"
         rows={2}
         className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
       />
-      <button
-        onClick={() => void handleReply()}
-        disabled={busy || !body.trim()}
-        className="mt-2 w-full rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-      >
-        {busy ? 'Saving…' : 'Reply'}
-      </button>
+      <div className="mt-1.5 flex justify-end gap-2">
+        <button
+          onClick={() => {
+            setOpen(false)
+            setBody('')
+            setError(null)
+          }}
+          className="rounded-md px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => void handleReply()}
+          disabled={busy || !body.trim()}
+          className="rounded-md bg-gray-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {busy ? 'Saving…' : 'Reply'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const VISIBLE_REPLIES = 2
+
+// One reviewer's comment with its replies; older replies fold away once a thread grows.
+function CommentThread({
+  comment,
+  replies,
+  canReply,
+  busy,
+  onReply,
+}: {
+  comment: StoredComment
+  replies: StoredComment[]
+  canReply: boolean
+  busy: boolean
+  onReply: (commentId: string, body: string) => Promise<void>
+}) {
+  const [showAll, setShowAll] = useState(false)
+  const hidden = showAll ? 0 : Math.max(0, replies.length - VISIBLE_REPLIES)
+  const shownReplies = replies.slice(hidden)
+
+  return (
+    <div className="px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <Avatar email={comment.author.email} size="sm" />
+        <span className="truncate text-xs font-medium text-gray-700">{comment.author.email}</span>
+        <span className={`ml-auto flex-shrink-0 text-[11px] ${fainterText}`}>{formatDateTime(comment.createdAt)}</span>
+      </div>
+      <p className="mt-1.5 whitespace-pre-wrap break-words text-sm text-gray-800">{comment.body}</p>
+
+      {replies.length > 0 && (
+        <div className="mt-2 space-y-2 border-l-2 border-gray-200 pl-3">
+          {hidden > 0 && (
+            <button onClick={() => setShowAll(true)} className="text-xs font-medium text-blue-600 hover:underline">
+              Show {hidden} earlier {hidden === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+          {shownReplies.map((r) => (
+            <div key={r.id}>
+              <div className="flex items-center gap-1.5">
+                <Avatar email={r.author.email} size="sm" />
+                <span className="truncate text-xs font-medium text-gray-700">{r.author.email}</span>
+                <span className={`ml-auto flex-shrink-0 text-[11px] ${fainterText}`}>{formatDateTime(r.createdAt)}</span>
+              </div>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">{r.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canReply && <ReplyBox commentId={comment.id} busy={busy} onReply={onReply} />}
     </div>
   )
 }
@@ -149,27 +230,32 @@ function CommentPopup({
   // highlighting the same passage) — show every comment anchored to that
   // range, not just the one id recogito happened to report.
   if (clicked) {
-    const onSameAnchor = comments.filter(
-      (c) => c.parentId === null && c.anchorStart === clicked.anchorStart && c.anchorEnd === clicked.anchorEnd,
-    )
+    // Oldest first so a thread reads top to bottom.
+    const byTime = (x: StoredComment, y: StoredComment) => x.createdAt.localeCompare(y.createdAt)
+    const onSameAnchor = comments
+      .filter((c) => c.parentId === null && c.anchorStart === clicked.anchorStart && c.anchorEnd === clicked.anchorEnd)
+      .sort(byTime)
 
     return (
-      <div data-comment-popup className="w-64 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-lg">
-        {onSameAnchor.map((c) => (
-          <div key={c.id} className="py-2 first:pt-0 last:pb-0">
-            <p className="text-gray-800">{c.body}</p>
-            <p className="mt-1 text-xs text-gray-400">{c.author.email}</p>
-            {comments
-              .filter((r) => r.parentId === c.id)
-              .map((r) => (
-                <div key={r.id} className="mt-2 border-l-2 border-gray-200 pl-2">
-                  <p className="text-gray-800">{r.body}</p>
-                  <p className="mt-1 text-xs text-gray-400">{r.author.email}</p>
-                </div>
-              ))}
-            {canReply && <ReplyBox commentId={c.id} busy={busy} onReply={onReply} />}
-          </div>
-        ))}
+      <div data-comment-popup className="w-80 overflow-hidden rounded-lg border border-gray-200 bg-white text-sm shadow-lg">
+        <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
+          <p className="truncate text-xs italic text-gray-500">“{clicked.anchorQuote}”</p>
+          <p className={`mt-0.5 text-[11px] ${fainterText}`}>
+            {onSameAnchor.length} {onSameAnchor.length === 1 ? 'comment' : 'comments'}
+          </p>
+        </div>
+        <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
+          {onSameAnchor.map((c) => (
+            <CommentThread
+              key={c.id}
+              comment={c}
+              replies={comments.filter((r) => r.parentId === c.id).sort(byTime)}
+              canReply={canReply}
+              busy={busy}
+              onReply={onReply}
+            />
+          ))}
+        </div>
       </div>
     )
   }
