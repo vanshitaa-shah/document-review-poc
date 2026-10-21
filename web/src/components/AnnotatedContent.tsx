@@ -10,6 +10,7 @@ import { ErrorMessage } from './ErrorMessage'
 
 export interface StoredComment {
   id: string
+  parentId: string | null
   body: string
   anchorQuote: string | null
   anchorStart: number | null
@@ -38,7 +39,7 @@ function SyncAnnotations({ comments }: { comments: StoredComment[] }) {
     if (!anno) return
 
     const annotations: TextAnnotation[] = comments
-      .filter((c) => c.anchorQuote !== null && c.anchorStart !== null && c.anchorEnd !== null)
+      .filter((c) => c.parentId === null && c.anchorQuote !== null && c.anchorStart !== null && c.anchorEnd !== null)
       .map((c) => ({
         id: c.id,
         bodies: [{ id: `${c.id}-body`, annotation: c.id, purpose: 'commenting', value: c.body }],
@@ -54,20 +55,89 @@ function SyncAnnotations({ comments }: { comments: StoredComment[] }) {
   return null
 }
 
+// One reply input per comment, so each reviewer is answered individually.
+function ReplyBox({
+  commentId,
+  busy,
+  onReply,
+}: {
+  commentId: string
+  busy: boolean
+  onReply: (commentId: string, body: string) => Promise<void>
+}) {
+  const [body, setBody] = useState('')
+  const [error, setError] = useState<unknown>(null)
+
+  async function handleReply() {
+    if (!body.trim()) return
+    setError(null)
+    try {
+      await onReply(commentId, body)
+      setBody('')
+    } catch (err) {
+      setError(err)
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <ErrorMessage error={error} />
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Reply…"
+        rows={2}
+        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+      />
+      <button
+        onClick={() => void handleReply()}
+        disabled={busy || !body.trim()}
+        className="mt-2 w-full rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+      >
+        {busy ? 'Saving…' : 'Reply'}
+      </button>
+    </div>
+  )
+}
+
+// Closes the popup on any click outside it and the annotated text.
+function CloseOnOutsideClick() {
+  const anno = useAnnotator<RecogitoTextAnnotator>()
+
+  useEffect(() => {
+    if (!anno) return
+
+    function handleMouseDown(event: MouseEvent) {
+      const target = event.target as Element | null
+      if (target?.closest('[data-comment-popup], [data-annotated-content]')) return
+      anno.cancelSelected()
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [anno])
+
+  return null
+}
+
 // The popup recogito shows on a fresh selection (to write a new comment) or on
 // clicking an existing highlight (to read the comment already on it).
 function CommentPopup({
   annotation,
   editable,
   comments,
+  canReply,
   busy,
   onCreate,
+  onReply,
 }: {
   annotation: TextAnnotation
   editable?: boolean
   comments: StoredComment[]
+  canReply: boolean
   busy: boolean
   onCreate: (comment: NewAnchoredComment) => Promise<void>
+  onReply: (commentId: string, body: string) => Promise<void>
 }) {
   const [body, setBody] = useState('')
   const [error, setError] = useState<unknown>(null)
@@ -80,14 +150,24 @@ function CommentPopup({
   // range, not just the one id recogito happened to report.
   if (clicked) {
     const onSameAnchor = comments.filter(
-      (c) => c.anchorStart === clicked.anchorStart && c.anchorEnd === clicked.anchorEnd,
+      (c) => c.parentId === null && c.anchorStart === clicked.anchorStart && c.anchorEnd === clicked.anchorEnd,
     )
+
     return (
-      <div className="w-64 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-lg">
+      <div data-comment-popup className="w-64 divide-y divide-gray-100 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-lg">
         {onSameAnchor.map((c) => (
           <div key={c.id} className="py-2 first:pt-0 last:pb-0">
             <p className="text-gray-800">{c.body}</p>
             <p className="mt-1 text-xs text-gray-400">{c.author.email}</p>
+            {comments
+              .filter((r) => r.parentId === c.id)
+              .map((r) => (
+                <div key={r.id} className="mt-2 border-l-2 border-gray-200 pl-2">
+                  <p className="text-gray-800">{r.body}</p>
+                  <p className="mt-1 text-xs text-gray-400">{r.author.email}</p>
+                </div>
+              ))}
+            {canReply && <ReplyBox commentId={c.id} busy={busy} onReply={onReply} />}
           </div>
         ))}
       </div>
@@ -125,7 +205,7 @@ function CommentPopup({
   }
 
   return (
-    <div className="w-72 rounded-md border border-gray-200 bg-white p-3 shadow-lg">
+    <div data-comment-popup className="w-72 rounded-md border border-gray-200 bg-white p-3 shadow-lg">
       <ErrorMessage error={error} />
       <textarea
         autoFocus
@@ -152,14 +232,18 @@ function CommentPopup({
 export function AnnotatedContent({
   comments,
   canAnnotate,
+  canReply,
   busy,
   onCreate,
+  onReply,
   children,
 }: {
   comments: StoredComment[]
   canAnnotate: boolean
+  canReply: boolean
   busy: boolean
   onCreate: (comment: NewAnchoredComment) => Promise<void>
+  onReply: (commentId: string, body: string) => Promise<void>
   children: ReactNode
 }) {
   return (
@@ -170,14 +254,17 @@ export function AnnotatedContent({
         </div>
       </TextAnnotator>
       <SyncAnnotations comments={comments} />
+      <CloseOnOutsideClick />
       <TextAnnotationPopup
         popup={(props) => (
           <CommentPopup
             annotation={props.annotation}
             editable={props.editable ?? false}
             comments={comments}
+            canReply={canReply}
             busy={busy}
             onCreate={onCreate}
+            onReply={onReply}
           />
         )}
       />

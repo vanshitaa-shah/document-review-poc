@@ -58,10 +58,12 @@ export function DocumentDetailPage() {
         <VersionContentPanel
           status={current.status}
           isReviewer={detail.isReviewer}
+          canReply={detail.isAuthor}
           versionContent={detail.versionContent}
           inlineComments={detail.inlineComments}
           commentBusy={detail.commentBusy}
           onCreateAnchoredComment={detail.handleCreateAnchoredComment}
+          onReplyToComment={detail.handleReplyToComment}
         />
       )}
     </AppShell>

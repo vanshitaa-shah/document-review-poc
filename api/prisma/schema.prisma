@@ -172,10 +172,16 @@ model Comment {
   anchorStart  Int     @map("anchor_start")
   anchorEnd    Int     @map("anchor_end")
 
+  // Set on an author's reply; points at the top-level comment it answers.
+  parentId String? @map("parent_id")
+
   version DocumentVersion @relation(fields: [versionId], references: [id])
   author  User            @relation("CommentAuthor", fields: [authorId], references: [id])
+  parent  Comment?        @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[]       @relation("CommentReplies")
 
   @@index([versionId])
+  @@index([parentId])
   @@map("comments")
 }
 

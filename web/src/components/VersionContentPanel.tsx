@@ -18,17 +18,21 @@ interface VersionContent {
 export function VersionContentPanel({
   status,
   isReviewer,
+  canReply,
   versionContent,
   inlineComments,
   commentBusy,
   onCreateAnchoredComment,
+  onReplyToComment,
 }: {
   status: string
   isReviewer: boolean
+  canReply: boolean
   versionContent: VersionContent | null
   inlineComments: StoredComment[]
   commentBusy: boolean
   onCreateAnchoredComment: (comment: NewAnchoredComment) => Promise<void>
+  onReplyToComment: (commentId: string, body: string) => Promise<void>
 }) {
   const canComment = isReviewer && status !== VersionStatus.APPROVED
 
@@ -46,8 +50,10 @@ export function VersionContentPanel({
           <AnnotatedContent
             comments={inlineComments}
             canAnnotate={canComment}
+            canReply={canReply}
             busy={commentBusy}
             onCreate={onCreateAnchoredComment}
+            onReply={onReplyToComment}
           >
             {versionContent.format === 'text' && versionContent.content}
             {versionContent.format === 'markdown' && <ReactMarkdown>{versionContent.content}</ReactMarkdown>}

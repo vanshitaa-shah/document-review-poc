@@ -179,6 +179,18 @@ export function useDocumentDetail(id: string | undefined) {
     }
   }
 
+  async function handleReplyToComment(commentId: string, body: string) {
+    if (!current) return
+    setCommentBusy(true)
+    try {
+      // A reply doesn't change the version, so only the comments reload.
+      await api.post(`/versions/${current.id}/comments/${commentId}/replies`, { body })
+      await loadComments()
+    } finally {
+      setCommentBusy(false)
+    }
+  }
+
   async function handleDownload(versionId: string, fileName: string) {
     try {
       const res = await fetch(`/versions/${versionId}/download`, { credentials: 'include' })
@@ -220,6 +232,7 @@ export function useDocumentDetail(id: string | undefined) {
     handleApprove,
     handleRequestChanges,
     handleCreateAnchoredComment,
+    handleReplyToComment,
     handleDownload,
   }
 }

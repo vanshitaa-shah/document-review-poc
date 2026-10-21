@@ -54,6 +54,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   VERSION_SUPERSEDED: 'Version superseded',
   APPROVED: 'Approved',
   CHANGES_REQUESTED: 'Changes requested',
+  COMMENT_REPLIED: 'Replied to a comment',
 }
 
 export function auditActionLabel(action: string): string {

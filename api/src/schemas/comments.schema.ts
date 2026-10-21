@@ -17,3 +17,12 @@ export const commentsQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 })
+
+export const commentParamsSchema = z.object({
+  id: z.string().uuid(),
+  commentId: z.string().uuid(),
+})
+
+export const createReplySchema = z.object({
+  body: z.string().trim().min(1, 'Reply body is required'),
+})

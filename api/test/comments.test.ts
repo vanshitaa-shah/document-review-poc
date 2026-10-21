@@ -183,6 +183,69 @@ describe('inline comments', () => {
     expect(res.status).toBe(400)
   })
 
+  it('lets the author reply to a reviewer comment without changing version status', async () => {
+    const doc = await document('Author reply', 'v1.txt', 'The quick brown fox jumps')
+    await submitDocument(author.token, doc.id)
+    const versionId = doc.currentVersion.id
+
+    const top = await request(app)
+      .post(`/versions/${versionId}/comments`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
+      .send({ body: 'Fix this', anchorQuote: 'brown', anchorStart: 10, anchorEnd: 15 })
+    expect(top.status).toBe(201)
+
+    const reply = await request(app)
+      .post(`/versions/${versionId}/comments/${top.body.id}/replies`)
+      .set('Cookie', `auth_token=${author.token}`)
+      .send({ body: 'Done, will fix in v2' })
+    expect(reply.status).toBe(201)
+    expect(reply.body.parentId).toBe(top.body.id)
+    expect(reply.body.author.id).toBe(author.id)
+    expect(reply.body.anchorStart).toBe(10)
+
+    // Reply to the reply stays attached to the root.
+    const nested = await request(app)
+      .post(`/versions/${versionId}/comments/${reply.body.id}/replies`)
+      .set('Cookie', `auth_token=${author.token}`)
+      .send({ body: 'Thanks' })
+    expect(nested.status).toBe(201)
+    expect(nested.body.parentId).toBe(top.body.id)
+
+    // No extra Review row, status untouched, reply audited.
+    expect(await prisma.review.count({ where: { versionId } })).toBe(1)
+    const version = await prisma.documentVersion.findUniqueOrThrow({ where: { id: versionId } })
+    expect(version.status).toBe('CHANGES_REQUESTED')
+    expect(await prisma.auditEvent.count({ where: { versionId, action: 'COMMENT_REPLIED' } })).toBe(2)
+  })
+
+  it('rejects a reply from anyone but the document author — reviewers and other authors', async () => {
+    const doc = await document('Reply forbidden', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
+    const top = await request(app)
+      .post(`/versions/${doc.currentVersion.id}/comments`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
+      .send({ body: 'x', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
+
+    const reviewerRes = await request(app)
+      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
+      .send({ body: 'hi' })
+    expect(reviewerRes.status).toBe(403)
+
+    const otherAuthor = await fixtures.actor('AUTHOR', 'author2', categoryId)
+    const res = await request(app)
+      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
+      .set('Cookie', `auth_token=${otherAuthor.token}`)
+      .send({ body: 'hi' })
+    expect(res.status).toBe(403)
+
+    const outsiderRes = await request(app)
+      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
+      .set('Cookie', `auth_token=${outsider.token}`)
+      .send({ body: 'hi' })
+    expect(outsiderRes.status).toBe(404)
+  })
+
   it('lets a second reviewer in the same category comment on top of the first', async () => {
     const doc = await document('Multiple reviewers', 'v1.txt', 'The quick brown fox jumps')
     await submitDocument(author.token, doc.id)

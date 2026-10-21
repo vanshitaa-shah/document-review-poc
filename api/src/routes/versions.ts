@@ -4,12 +4,18 @@ import { validate } from '../middleware/validate.ts'
 import {
   approveVersion,
   createComment,
+  createReply,
   downloadVersion,
   getVersionContent,
   listComments,
   requestChanges,
 } from '../controllers/versions/index.ts'
-import { commentsQuerySchema, createCommentSchema } from '../schemas/comments.schema.ts'
+import {
+  commentParamsSchema,
+  commentsQuerySchema,
+  createCommentSchema,
+  createReplySchema,
+} from '../schemas/comments.schema.ts'
 import {
   requestChangesBodySchema,
   versionIdParamSchema,
@@ -67,4 +73,12 @@ versionsRouter.post(
   requireRole('REVIEWER'),
   validate({ params: versionIdParamSchema, body: createCommentSchema }),
   createComment,
+)
+
+// Only the document's author replies to a comment; never changes version status.
+versionsRouter.post(
+  '/:id/comments/:commentId/replies',
+  requireAuth,
+  validate({ params: commentParamsSchema, body: createReplySchema }),
+  createReply,
 )

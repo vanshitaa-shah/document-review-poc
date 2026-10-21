@@ -10,6 +10,7 @@ export type AuditAction =
   | 'SUBMITTED'
   | 'APPROVED'
   | 'CHANGES_REQUESTED'
+  | 'COMMENT_REPLIED'
   | 'VERSION_SUPERSEDED'
 
 interface AuditEventInput {
