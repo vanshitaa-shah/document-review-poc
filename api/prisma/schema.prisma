@@ -172,7 +172,7 @@ model Comment {
   anchorStart  Int     @map("anchor_start")
   anchorEnd    Int     @map("anchor_end")
 
-  // Set on an author's reply; points at the top-level comment it answers.
+  // Set on a reply; points at the top-level comment it answers.
   parentId String? @map("parent_id")
 
   version DocumentVersion @relation(fields: [versionId], references: [id])

@@ -75,7 +75,7 @@ versionsRouter.post(
   createComment,
 )
 
-// Only the document's author replies to a comment; never changes version status.
+// The document's author or a reviewer with access replies to a comment; never changes version status.
 versionsRouter.post(
   '/:id/comments/:commentId/replies',
   requireAuth,

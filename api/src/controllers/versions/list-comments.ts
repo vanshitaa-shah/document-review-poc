@@ -15,13 +15,13 @@ import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 export async function listComments(req: Request, res: Response) {
   const { id: versionId } = req.params as z.infer<typeof versionIdParamSchema>
   const { cursor, limit = 50 } = getValidatedQuery(req, commentsQuerySchema)
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const version = await prisma.documentVersion.findFirst({
     where: { id: versionId, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || isHiddenFromUser(version, userId)) {
+  if (!version || isHiddenFromUser(version, userId, role)) {
     throw new NotFoundError()
   }
 

@@ -26,13 +26,13 @@ export async function createComment(req: Request, res: Response) {
   const { body, anchorQuote, anchorPrefix, anchorSuffix, anchorStart, anchorEnd } = req.body as z.infer<
     typeof createCommentSchema
   >
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const version = await prisma.documentVersion.findFirst({
     where: { id: versionId, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || isHiddenFromUser(version, userId)) {
+  if (!version || isHiddenFromUser(version, userId, role)) {
     throw new NotFoundError()
   }
 

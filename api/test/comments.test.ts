@@ -203,10 +203,10 @@ describe('inline comments', () => {
     expect(reply.body.author.id).toBe(author.id)
     expect(reply.body.anchorStart).toBe(10)
 
-    // Reply to the reply stays attached to the root.
+    // A reviewer can answer in the thread too, and it stays attached to the root.
     const nested = await request(app)
       .post(`/versions/${versionId}/comments/${reply.body.id}/replies`)
-      .set('Cookie', `auth_token=${author.token}`)
+      .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'Thanks' })
     expect(nested.status).toBe(201)
     expect(nested.body.parentId).toBe(top.body.id)
@@ -218,7 +218,7 @@ describe('inline comments', () => {
     expect(await prisma.auditEvent.count({ where: { versionId, action: 'COMMENT_REPLIED' } })).toBe(2)
   })
 
-  it('rejects a reply from anyone but the document author — reviewers and other authors', async () => {
+  it('hides the thread from another author and from a reviewer outside the category — 404', async () => {
     const doc = await document('Reply forbidden', 'v1.txt', 'content')
     await submitDocument(author.token, doc.id)
     const top = await request(app)
@@ -226,24 +226,28 @@ describe('inline comments', () => {
       .set('Cookie', `auth_token=${reviewer.token}`)
       .send({ body: 'x', anchorQuote: 'content', anchorStart: 0, anchorEnd: 7 })
 
-    const reviewerRes = await request(app)
-      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
-      .set('Cookie', `auth_token=${reviewer.token}`)
-      .send({ body: 'hi' })
-    expect(reviewerRes.status).toBe(403)
-
     const otherAuthor = await fixtures.actor('AUTHOR', 'author2', categoryId)
-    const res = await request(app)
-      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
-      .set('Cookie', `auth_token=${otherAuthor.token}`)
-      .send({ body: 'hi' })
-    expect(res.status).toBe(403)
+    for (const token of [otherAuthor.token, outsider.token]) {
+      const res = await request(app)
+        .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
+        .set('Cookie', `auth_token=${token}`)
+        .send({ body: 'hi' })
+      expect(res.status).toBe(404)
+    }
+    expect(await prisma.comment.count({ where: { parentId: top.body.id } })).toBe(0)
+  })
 
-    const outsiderRes = await request(app)
-      .post(`/versions/${doc.currentVersion.id}/comments/${top.body.id}/replies`)
-      .set('Cookie', `auth_token=${outsider.token}`)
-      .send({ body: 'hi' })
-    expect(outsiderRes.status).toBe(404)
+  it('hides content and comments from another author in the same category — 404', async () => {
+    const doc = await document('Other author blocked', 'v1.txt', 'content')
+    await submitDocument(author.token, doc.id)
+    const otherAuthor = await fixtures.actor('AUTHOR', 'author3', categoryId)
+
+    for (const path of ['content', 'comments', 'download']) {
+      const res = await request(app)
+        .get(`/versions/${doc.currentVersion.id}/${path}`)
+        .set('Cookie', `auth_token=${otherAuthor.token}`)
+      expect(res.status).toBe(404)
+    }
   })
 
   it('lets a second reviewer in the same category comment on top of the first', async () => {

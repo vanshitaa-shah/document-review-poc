@@ -5,25 +5,26 @@ import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
 import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
-import { ForbiddenError, NotFoundError } from '../../lib/errors.ts'
+import { NotFoundError } from '../../lib/errors.ts'
 import { commentParamsSchema, createReplySchema } from '../../schemas/comments.schema.ts'
 import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 
-// The document's author replies to a comment; discussion only, so version status is untouched.
+// The document's author or a reviewer with category access replies; discussion only, so version status is untouched.
 export async function createReply(req: Request, res: Response) {
   const { id: versionId, commentId } = req.params as z.infer<typeof commentParamsSchema>
   const { body } = req.body as z.infer<typeof createReplySchema>
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const version = await prisma.documentVersion.findFirst({
     where: { id: versionId, ...documentVersionCategoryFilter(userId) },
     include: { document: true },
   })
-  if (!version || isHiddenFromUser(version, userId)) {
+  if (!version || isHiddenFromUser(version, userId, role)) {
     throw new NotFoundError()
   }
-  if (version.document.authorId !== userId) {
-    throw new ForbiddenError()
+  // Authors who don't own the document are already hidden above; this covers other roles (e.g. admin).
+  if (role !== 'REVIEWER' && version.document.authorId !== userId) {
+    throw new NotFoundError()
   }
 
   const target = await prisma.comment.findFirst({ where: { id: commentId, versionId } })

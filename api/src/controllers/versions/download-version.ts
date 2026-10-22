@@ -13,13 +13,13 @@ import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
 // streamed through rather than handed to res.download() with a local path.
 export async function downloadVersion(req: Request, res: Response) {
   const { id } = req.params as z.infer<typeof versionIdParamSchema>
-  const { id: userId } = req.user!
+  const { id: userId, role } = req.user!
 
   const version = await prisma.documentVersion.findFirst({
     where: { id, ...documentVersionCategoryFilter(userId) },
     include: { document: true, approval: true },
   })
-  if (!version || isHiddenFromUser(version, userId)) {
+  if (!version || isHiddenFromUser(version, userId, role)) {
     throw new NotFoundError()
   }
 

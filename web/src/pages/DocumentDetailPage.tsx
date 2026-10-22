@@ -64,7 +64,7 @@ export function DocumentDetailPage() {
         <VersionContentPanel
           status={current.status}
           isReviewer={detail.isReviewer}
-          canReply={detail.isAuthor}
+          canReply={detail.isAuthor || detail.isReviewer}
           versionContent={detail.versionContent}
           inlineComments={detail.inlineComments}
           commentBusy={detail.commentBusy}
