@@ -109,6 +109,11 @@ if (!doc) throw new NotFoundError()
 Every document, version, comment, audit and download query goes through this. The spec
 asks for it to be proven with a test, not a UI review.
 
+Membership is necessary but not sufficient. After the predicate, `isHiddenFromUser(version,
+userId, role)` hides drafts from non-owners and any document from an AUTHOR who doesn't own
+it. It narrows what the predicate already returned and never replaces it, so the version
+lookup in every version-scoped handler still carries the category predicate.
+
 ---
 
 ## 5. Audit rows are written in the same transaction

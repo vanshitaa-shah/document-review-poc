@@ -71,8 +71,8 @@
   and comments on it — not just whoever requested changes; any number of reviewers
   can comment on the same version as long as it isn't approved yet
 - Author and reviewer both see the highlight and the comment against that exact text
-- The document's author can reply to a reviewer's comment (one level deep, author-only);
-  a reply never changes the version's status
+- The document's author and reviewers with category access can reply to a comment (one
+  level deep); a reply never changes the version's status
 - Anchors stored as quote + character offsets, tied to **one specific version**
 - Comments **stay on the version they were made on** — a new version starts clean, and the
   old version's comments remain visible in history
@@ -82,6 +82,8 @@
 - Category ↔ User membership; a user has one role (a row in the `Role` table: ADMIN, AUTHOR or REVIEWER) and can belong to many categories
 - Filtered **in the query predicate**, not a post-fetch check
 - Direct request by document ID without membership → refused
+- Membership isn't the whole rule: an author only sees their own documents (another author
+  in the same category gets `404`), and reviewers never see drafts
 - Proven by test
 
 **Audit trail**
@@ -118,7 +120,7 @@
 - Cloudinary / S3 / MinIO — the Docker volume persists, so it isn't needed
 - Diff-based version storage
 - Re-anchoring comments onto a new version
-- Mentions, resolve/unresolve, reviewer follow-ups inside a thread, deeper threads
+- Mentions, resolve/unresolve, deeper threads
 - Multiple required reviewers, quorum, size/category thresholds
 - Notifications, email, webhooks
 - Soft delete, archival, retention
@@ -150,8 +152,8 @@
 2. **After a reviewer requests changes, what happens?** Assuming the document leaves the review
    queue and waits for the author to upload a new version.
 3. **One repo or two?** Assuming one repo with `api/` and `web/` folders.
-4. **Can an author comment too, or reviewers only?** Reviewers start comments; the author can only
-   reply to them (one level deep, no reviewer follow-ups in v1).
+4. **Can an author comment too, or reviewers only?** Reviewers start comments; the author and
+   reviewers can reply to them (one level deep).
 
 ---
 

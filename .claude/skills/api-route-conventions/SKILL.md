@@ -93,7 +93,8 @@ router.post(
 | `ConflictError` | 409 | Stale version, already approved, locked document |
 
 404 for a category-access failure is deliberate — a 403 confirms the document exists,
-which tells an unauthorized caller something.
+which tells an unauthorized caller something. The same goes for an author asking for
+another author's document in their category (`isHiddenFromUser`): 404, not 403.
 
 The 409 message should name the actual current version. The UI renders it verbatim and
 it appears in the walkthrough, so it needs to read like an explanation.
