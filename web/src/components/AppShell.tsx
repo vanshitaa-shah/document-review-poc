@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth'
 import { homeRouteFor, Role, ROUTES } from '../lib/constants'
 import { Avatar } from './Avatar'
 import { LogoMark } from './Icons'
+import { NotificationBell } from './NotificationBell'
 
 function tabClass({ isActive }: { isActive: boolean }) {
   return `border-b-2 px-1 py-2.5 text-sm font-medium transition-colors ${
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {user && (
               <>
+                <NotificationBell />
                 <span className="hidden items-center gap-2 sm:flex">
                   <Avatar email={user.email} size="sm" />
                   <span className="text-sm text-[#d0d7de]">{user.email}</span>

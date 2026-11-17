@@ -10,6 +10,7 @@ import { adminRouter } from './routes/admin.ts'
 import { authRouter } from './routes/auth.ts'
 import { categoriesRouter } from './routes/categories.ts'
 import { documentsRouter } from './routes/documents.ts'
+import { notificationsRouter } from './routes/notifications.ts'
 import { reviewsRouter } from './routes/reviews.ts'
 import { versionsRouter } from './routes/versions.ts'
 import { errorHandler } from './middleware/errorHandler.ts'
@@ -38,6 +39,7 @@ app.use('/auth', authRouter)
 app.use('/admin', adminRouter)
 app.use('/categories', categoriesRouter)
 app.use('/documents', documentsRouter)
+app.use('/notifications', notificationsRouter)
 app.use('/reviews', reviewsRouter)
 app.use('/versions', versionsRouter)
 

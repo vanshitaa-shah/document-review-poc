@@ -6,6 +6,8 @@ import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
 import { throwStaleVersionConflict } from '../../lib/reviewConflict.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { notifyChangesRequested } from '../../lib/notify.ts'
+import { publishNotifications } from '../../lib/events.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { createCommentSchema } from '../../schemas/comments.schema.ts'
 import { versionIdParamSchema } from '../../schemas/reviews.schema.ts'
@@ -36,7 +38,7 @@ export async function createComment(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  const comment = await prisma.$transaction(async (tx) => {
+  const { comment, notifications } = await prisma.$transaction(async (tx) => {
     const { count } = await tx.documentVersion.updateMany({
       where: { id: versionId, isCurrent: true, status: { in: ['SUBMITTED', 'CHANGES_REQUESTED'] } },
       data: { status: 'CHANGES_REQUESTED' },
@@ -70,9 +72,15 @@ export async function createComment(req: Request, res: Response) {
       metadata: { comment: body },
     })
     await touchDocument(tx, version.documentId)
+    const notified = await notifyChangesRequested(tx, {
+      actorId: userId,
+      documentId: version.documentId,
+      versionId,
+    })
 
-    return created
+    return { comment: created, notifications: notified }
   }, transactionOptions)
+  publishNotifications(notifications)
 
   res.status(201).json(comment)
 }

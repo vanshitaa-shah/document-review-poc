@@ -6,6 +6,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { Avatar } from '../components/Avatar'
 import { FileIcon } from '../components/Icons'
 import { ROUTES } from '../lib/constants'
+import { useNotificationEvents } from '../lib/notifications'
 import { formatDateTime } from '../lib/format'
 import { btnDefault, card, fainterText, mutedText, pageHeading, select } from '../lib/ui'
 
@@ -74,6 +75,12 @@ export function ReviewQueuePage() {
     void loadPage(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryFilter])
+
+  // A new submission (or a superseded one) changes the queue — refetch it, unless the
+  // reviewer has paged deeper, where jumping back to the top would lose their place.
+  useNotificationEvents(() => {
+    if (pages.length <= 1) void loadPage(null)
+  })
 
   const items = pages.flat()
 

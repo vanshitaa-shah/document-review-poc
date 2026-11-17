@@ -60,6 +60,7 @@ export function createFixtures(prefix: string): TestFixtures {
   }
 
   async function cleanup(): Promise<void> {
+    await prisma.notification.deleteMany({ where: { documentId: { in: documentIds } } })
     await prisma.comment.deleteMany({ where: { version: { documentId: { in: documentIds } } } })
     await prisma.auditEvent.deleteMany({ where: { documentId: { in: documentIds } } })
     await prisma.approval.deleteMany({ where: { version: { documentId: { in: documentIds } } } })

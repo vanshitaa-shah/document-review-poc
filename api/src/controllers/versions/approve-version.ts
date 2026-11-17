@@ -6,6 +6,8 @@ import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
 import { throwStaleVersionConflict } from '../../lib/reviewConflict.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { notifyApproved } from '../../lib/notify.ts'
+import { publishNotifications } from '../../lib/events.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { versionParamsSchema } from '../../schemas/reviews.schema.ts'
 
@@ -22,7 +24,7 @@ export async function approveVersion(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  await prisma.$transaction(async (tx) => {
+  const notifications = await prisma.$transaction(async (tx) => {
     const { count } = await tx.documentVersion.updateMany({
       where: { id: versionId, isCurrent: true, status: 'SUBMITTED' },
       data: { status: 'APPROVED' },
@@ -39,7 +41,9 @@ export async function approveVersion(req: Request, res: Response) {
       versionId,
     })
     await touchDocument(tx, version.documentId)
+    return notifyApproved(tx, { actorId: userId, documentId: version.documentId, versionId })
   }, transactionOptions)
+  publishNotifications(notifications)
 
   res.status(204).send()
 }

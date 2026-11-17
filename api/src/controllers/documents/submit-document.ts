@@ -7,6 +7,8 @@ import { touchDocument } from '../../lib/documentActivity.ts'
 import { withSerializableRetry } from '../../lib/dbRetry.ts'
 import { ConflictError, NotFoundError } from '../../lib/errors.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { notifyRevisionSubmitted, notifySubmitted } from '../../lib/notify.ts'
+import { publishNotifications } from '../../lib/events.ts'
 import { paramsSchema } from '../../schemas/documents.schema.ts'
 
 // Submits the author's draft, making it visible to reviewers. First submit just flips
@@ -24,7 +26,8 @@ export async function submitDocument(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  await withSerializableRetry(() =>
+  // Returned out of the transaction so only the attempt that commits ever gets published.
+  const notifications = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
         const [current] = await tx.$queryRaw<Array<{ id: string; versionNumber: number; status: string }>>`
@@ -41,7 +44,7 @@ export async function submitDocument(req: Request, res: Response) {
           await tx.documentVersion.update({ where: { id: current.id }, data: { status: 'SUBMITTED' } })
           await recordAuditEvent(tx, { actorId: userId, action: 'SUBMITTED', documentId, versionId: current.id })
           await touchDocument(tx, documentId)
-          return
+          return notifySubmitted(tx, { actorId: userId, documentId, versionId: current.id })
         }
 
         if (current.status === 'APPROVED') {
@@ -76,10 +79,18 @@ export async function submitDocument(req: Request, res: Response) {
         })
         await recordAuditEvent(tx, { actorId: userId, action: 'SUBMITTED', documentId, versionId: draft.id })
         await touchDocument(tx, documentId)
+        return notifyRevisionSubmitted(tx, {
+          actorId: userId,
+          documentId,
+          versionId: draft.id,
+          supersededVersionId: current.id,
+        })
       },
       { isolationLevel: 'Serializable', ...transactionOptions },
     ),
   )
+
+  publishNotifications(notifications)
 
   res.status(204).send()
 }

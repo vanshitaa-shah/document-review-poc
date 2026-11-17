@@ -5,6 +5,8 @@ import { documentVersionCategoryFilter } from '../../lib/categoryAccess.ts'
 import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { notifyCommentReplied } from '../../lib/notify.ts'
+import { publishNotifications } from '../../lib/events.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { commentParamsSchema, createReplySchema } from '../../schemas/comments.schema.ts'
 import { isHiddenFromUser } from '../../lib/versionVisibility.ts'
@@ -38,7 +40,7 @@ export async function createReply(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  const reply = await prisma.$transaction(async (tx) => {
+  const { reply, notifications } = await prisma.$transaction(async (tx) => {
     const created = await tx.comment.create({
       data: {
         versionId,
@@ -62,9 +64,16 @@ export async function createReply(req: Request, res: Response) {
       metadata: { comment: body, parentId: root.id },
     })
     await touchDocument(tx, version.documentId)
+    const notified = await notifyCommentReplied(tx, {
+      actorId: userId,
+      documentId: version.documentId,
+      versionId,
+      rootCommentId: root.id,
+    })
 
-    return created
+    return { reply: created, notifications: notified }
   }, transactionOptions)
+  publishNotifications(notifications)
 
   res.status(201).json(reply)
 }

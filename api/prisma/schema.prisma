@@ -49,6 +49,8 @@ model User {
   approvals         Approval[]           @relation("ApprovalApprover")
   comments          Comment[]            @relation("CommentAuthor")
   auditEvents       AuditEvent[]         @relation("AuditActor")
+  notifications     Notification[]       @relation("NotificationRecipient")
+  notificationsSent Notification[]       @relation("NotificationActor")
 
   @@index([roleId])
   @@map("users")
@@ -92,8 +94,9 @@ model Document {
 
   category    Category          @relation(fields: [categoryId], references: [id])
   author      User              @relation("DocumentAuthor", fields: [authorId], references: [id])
-  versions    DocumentVersion[]
-  auditEvents AuditEvent[]
+  versions      DocumentVersion[]
+  auditEvents   AuditEvent[]
+  notifications Notification[]
 
   @@index([categoryId, updatedAt])
   @@map("documents")
@@ -120,8 +123,9 @@ model DocumentVersion {
 
   reviews     Review[]
   approval    Approval?
-  comments    Comment[]
-  auditEvents AuditEvent[]
+  comments      Comment[]
+  auditEvents   AuditEvent[]
+  notifications Notification[]
 
   @@unique([documentId, versionNumber])
   @@index([documentId, isCurrent])
@@ -200,4 +204,28 @@ model AuditEvent {
 
   @@index([documentId, timestamp])
   @@map("audit_events")
+}
+
+// One row per (event, recipient). Written in the same transaction as the action it
+// reports (outbox-style, like AuditEvent) so a rolled-back action never notifies;
+// pushed live over SSE only after that transaction commits — see lib/notify.ts.
+model Notification {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id") // the recipient
+  actorId    String    @map("actor_id")
+  type       String // same names as AuditAction, e.g. "APPROVED" — see lib/notify.ts
+  documentId String    @map("document_id")
+  versionId  String    @map("version_id")
+  message    String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readAt     DateTime? @map("read_at")
+
+  user     User            @relation("NotificationRecipient", fields: [userId], references: [id])
+  actor    User            @relation("NotificationActor", fields: [actorId], references: [id])
+  document Document        @relation(fields: [documentId], references: [id])
+  version  DocumentVersion @relation(fields: [versionId], references: [id])
+
+  @@index([userId, createdAt, id])
+  @@index([documentId])
+  @@map("notifications")
 }

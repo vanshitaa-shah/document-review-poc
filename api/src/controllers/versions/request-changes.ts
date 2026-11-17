@@ -6,6 +6,8 @@ import { recordAuditEvent } from '../../lib/audit.ts'
 import { touchDocument } from '../../lib/documentActivity.ts'
 import { throwStaleVersionConflict } from '../../lib/reviewConflict.ts'
 import { transactionOptions } from '../../lib/transactionOptions.ts'
+import { notifyChangesRequested } from '../../lib/notify.ts'
+import { publishNotifications } from '../../lib/events.ts'
 import { NotFoundError } from '../../lib/errors.ts'
 import { requestChangesBodySchema, versionParamsSchema } from '../../schemas/reviews.schema.ts'
 
@@ -26,7 +28,7 @@ export async function requestChanges(req: Request, res: Response) {
     throw new NotFoundError()
   }
 
-  await prisma.$transaction(async (tx) => {
+  const notifications = await prisma.$transaction(async (tx) => {
     const { count } = await tx.documentVersion.updateMany({
       where: { id: versionId, isCurrent: true, status: { in: ['SUBMITTED', 'CHANGES_REQUESTED'] } },
       data: { status: 'CHANGES_REQUESTED' },
@@ -51,7 +53,9 @@ export async function requestChanges(req: Request, res: Response) {
       metadata: { comment },
     })
     await touchDocument(tx, version.documentId)
+    return notifyChangesRequested(tx, { actorId: userId, documentId: version.documentId, versionId })
   }, transactionOptions)
+  publishNotifications(notifications)
 
   res.status(204).send()
 }

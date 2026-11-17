@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, ApiError } from '../lib/apiClient'
 import { useAuth } from '../lib/auth'
 import { Role } from '../lib/constants'
+import { useNotificationEvents } from '../lib/notifications'
 import type { NewAnchoredComment, StoredComment } from '../components/AnnotatedContent'
 
 interface CategoryRef {
@@ -107,6 +108,14 @@ export function useDocumentDetail(id: string | undefined) {
   useEffect(() => {
     void loadComments()
   }, [loadComments])
+
+  // Someone else just acted on this document (new version, approval, comment, reply) —
+  // pull the new state without a manual refresh. Silent, so a failed refresh keeps the page.
+  useNotificationEvents((notification) => {
+    if (notification.documentId !== id) return
+    void load({ silent: true })
+    void loadComments()
+  })
 
   const isAuthor = document?.authorId === user?.id
   const isReviewer = user?.role === Role.REVIEWER

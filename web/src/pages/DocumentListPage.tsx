@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { AppShell } from '../components/AppShell'
 import { FileIcon } from '../components/Icons'
 import { DOCUMENT_LIST_PAGE_SIZE, Role, ROUTES } from '../lib/constants'
+import { useNotificationEvents } from '../lib/notifications'
 import { VERSION_STATUS_OPTIONS } from '../lib/format'
 import { btnDefault, btnPrimary, card, fainterText, mutedText, pageHeading, select } from '../lib/ui'
 
@@ -83,6 +84,9 @@ export function DocumentListPage() {
     void loadPage(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, categoryFilter])
+
+  // Statuses change under the list as others act — refresh the page being viewed.
+  useNotificationEvents(() => void loadPage(cursor))
 
   function goNext() {
     if (!nextCursor) return
